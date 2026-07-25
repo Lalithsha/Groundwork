@@ -20,14 +20,12 @@ spring:
     type: redis
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY:demo_key}
+      api-key: ${GEMINI_API_KEY:${OPENAI_API_KEY:demo_key}}
+      base-url: ${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}
       chat:
         options:
-          model: gpt-4o-mini
+          model: ${AI_MODEL:gemini-1.5-flash}
           temperature: 0.0
-      embedding:
-        options:
-          model: text-embedding-3-small
 
 server:
   port: 8080

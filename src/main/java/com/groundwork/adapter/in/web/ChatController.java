@@ -64,8 +64,12 @@ public class ChatController {
         
         String answer;
         try {
-            String apiKey = System.getenv("OPENAI_API_KEY");
-            if (apiKey != null && !apiKey.isBlank() && !"demo_key".equals(apiKey)) {
+            String geminiKey = System.getenv("GEMINI_API_KEY");
+            String openAiKey = System.getenv("OPENAI_API_KEY");
+            boolean hasKey = (geminiKey != null && !geminiKey.isBlank() && !"demo_key".equals(geminiKey)) ||
+                            (openAiKey != null && !openAiKey.isBlank() && !"demo_key".equals(openAiKey));
+
+            if (hasKey) {
                 answer = chatClient.call(new Prompt(fullPrompt)).getResult().getOutput().getContent();
             } else {
                 answer = synthesizeFallbackAnswer(request.question(), contextChunks);
