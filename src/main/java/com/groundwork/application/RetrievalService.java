@@ -1,5 +1,6 @@
 package com.groundwork.application;
 
+import com.groundwork.adapter.out.ai.CohereRerankAdapter;
 import com.groundwork.domain.model.DocumentChunk;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -12,11 +13,12 @@ public class RetrievalService {
 
     private static final int RRF_K = 60;
 
-    // Simulated/JDBC vector + keyword search adapter interface
     private final DocumentRepository documentRepository;
+    private final CohereRerankAdapter rerankAdapter;
 
-    public RetrievalService(DocumentRepository documentRepository) {
+    public RetrievalService(DocumentRepository documentRepository, CohereRerankAdapter rerankAdapter) {
         this.documentRepository = documentRepository;
+        this.rerankAdapter = rerankAdapter;
     }
 
     @Cacheable(value = "retrieval", key = "#query.hashCode() + ':' + #mode")
@@ -46,8 +48,8 @@ public class RetrievalService {
             .limit(10)
             .collect(Collectors.toList());
 
-        // Reranking step (Cohere or fallback top-K cut)
-        return rerankCandidates(query, merged, limit);
+        // Reranking step via Cohere API adapter
+        return rerankAdapter.rerank(query, merged, limit);
     }
 
     private void accumulateRrfScores(List<DocumentChunk> list, Map<UUID, Double> scores, Map<UUID, DocumentChunk> docMap) {
