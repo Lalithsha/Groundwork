@@ -33,9 +33,15 @@ public class ChatController {
     public ResponseEntity<ChatResponseDto> chat(@RequestBody ChatRequest request) {
         String mode = request.retrievalMode() != null ? request.retrievalMode() : "hybrid_rerank";
         
-        // Sanity pre-filter for prompt injection security (Phase 4)
+        // Input length validation (Phase 4)
         if (request.question() != null && request.question().length() > 2000) {
             return ResponseEntity.badRequest().body(new ChatResponseDto("Question exceeds maximum length limit of 2000 characters.", List.of(), mode));
+        }
+
+        // Heuristic Prompt Injection Defense (Phase 4)
+        String lowerQ = request.question() != null ? request.question().toLowerCase() : "";
+        if (lowerQ.contains("ignore previous instructions") || lowerQ.contains("disregard the above") || lowerQ.contains("you are now")) {
+            return ResponseEntity.badRequest().body(new ChatResponseDto("Security Guardrail Triggered: Potential prompt injection phrase detected.", List.of(), mode));
         }
 
         List<DocumentChunk> contextChunks = retrievalService.retrieve(request.question(), mode, 4);
