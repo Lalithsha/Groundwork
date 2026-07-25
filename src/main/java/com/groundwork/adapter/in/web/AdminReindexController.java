@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/admin/reindex")
 public class AdminReindexController {

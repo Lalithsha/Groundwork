@@ -16,14 +16,23 @@ chatForm.addEventListener('submit', async (e) => {
   const mode = modeSelect.value;
 
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: text, retrievalMode: mode })
-    });
+    let response;
+    try {
+      response = await fetch('http://localhost:8080/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: text, retrievalMode: mode })
+      });
+    } catch (e) {
+      response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: text, retrievalMode: mode })
+      });
+    }
 
     const data = await response.json();
-    assistantBubble.innerHTML = data.answer || 'Response received.';
+    assistantBubble.innerText = data.answer || 'Response received.';
   } catch (err) {
     assistantBubble.innerText = 'Failed to connect to Groundwork backend.';
   }
@@ -31,7 +40,12 @@ chatForm.addEventListener('submit', async (e) => {
 
 reindexBtn.addEventListener('click', async () => {
   try {
-    const res = await fetch('/api/admin/reindex', { method: 'POST' });
+    let res;
+    try {
+      res = await fetch('http://localhost:8080/api/admin/reindex', { method: 'POST' });
+    } catch (e) {
+      res = await fetch('/api/admin/reindex', { method: 'POST' });
+    }
     if (res.status === 409) {
       alert('⚠️ Re-index job already in progress!');
     } else {

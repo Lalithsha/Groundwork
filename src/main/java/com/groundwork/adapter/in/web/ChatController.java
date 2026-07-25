@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/chat")
 public class ChatController {
