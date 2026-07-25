@@ -1,5 +1,6 @@
 package com.groundwork.adapter.in.web;
 
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +17,11 @@ import java.util.UUID;
 public class AdminReindexController {
 
     private final JdbcTemplate jdbcTemplate;
+    private final CacheManager cacheManager;
 
-    public AdminReindexController(JdbcTemplate jdbcTemplate) {
+    public AdminReindexController(JdbcTemplate jdbcTemplate, CacheManager cacheManager) {
         this.jdbcTemplate = jdbcTemplate;
+        this.cacheManager = cacheManager;
     }
 
     @PostMapping
@@ -50,8 +53,15 @@ public class AdminReindexController {
     public void runAsyncReindex(UUID jobId) {
         try {
             jdbcTemplate.update("UPDATE reindex_jobs SET status = 'running' WHERE id = ?", jobId);
-            // Simulate corpus fetching and re-indexing chunk processing
+            // Simulate document re-fetching and embedding generation
             Thread.sleep(2000);
+            
+            // Explicit cache invalidation on re-index completion (Part A.3 #3)
+            var cache = cacheManager.getCache("retrieval");
+            if (cache != null) {
+                cache.clear();
+            }
+
             jdbcTemplate.update("UPDATE reindex_jobs SET status = 'completed', completed_at = ? WHERE id = ?", Instant.now(), jobId);
         } catch (Exception e) {
             jdbcTemplate.update("UPDATE reindex_jobs SET status = 'failed', error_message = ? WHERE id = ?", e.getMessage(), jobId);
