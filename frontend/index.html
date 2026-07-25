@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Groundwork — Support & Docs AI Assistant</title>
+  <meta name="description" content="Production-grade AI Support Assistant with Hybrid Retrieval, RRF Reranking, and Live Tool Calling." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="navbar">
+      <div class="brand">
+        <div class="logo-icon">⚡</div>
+        <div class="brand-text">
+          <h1>Groundwork</h1>
+          <span class="badge">Hybrid RAG v1.0</span>
+        </div>
+      </div>
+      <div class="nav-controls">
+        <label class="toggle-mode">
+          <span>Retrieval Mode:</span>
+          <select id="retrievalModeSelect">
+            <option value="hybrid_rerank">Hybrid (Vector + FTS + Rerank)</option>
+            <option value="naive">Naive (Vector Only)</option>
+          </select>
+        </label>
+        <button id="reindexBtn" class="btn btn-secondary">⚡ Admin Re-index</button>
+      </div>
+    </header>
+
+    <main class="chat-container">
+      <div class="messages" id="messageList">
+        <div class="message assistant">
+          <div class="avatar">AI</div>
+          <div class="bubble">
+            Hello! I am your <strong>Groundwork Support Assistant</strong>. Ask me anything about HookShot webhooks, delivery retries, DLQ policies, or lookup a live delivery status using your Delivery ID.
+          </div>
+        </div>
+      </div>
+
+      <div class="input-panel">
+        <form id="chatForm">
+          <input type="text" id="userInput" placeholder="Ask a support question or check delivery status..." required autocomplete="off" />
+          <button type="submit" id="sendBtn" class="btn btn-primary">
+            <span>Send</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

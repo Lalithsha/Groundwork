@@ -1,0 +1,17 @@
+[
+  {
+    "question": "What happens when a delivery exhausts all retry attempts?",
+    "ground_truth_answer": "It moves to the dead-letter queue (DLQ) rather than being lost.",
+    "ground_truth_context": "doc_id_of_the_dlq_explanation_chunk"
+  },
+  {
+    "question": "How do I check the delivery status of a specific webhook payload?",
+    "ground_truth_answer": "Call GET /api/webhooks/{deliveryId}/status or ask the Groundwork assistant using the delivery ID.",
+    "ground_truth_context": "doc_id_of_status_lookup"
+  },
+  {
+    "question": "What is the exponential backoff interval formula for webhook retries?",
+    "ground_truth_answer": "Initial backoff starts at 5 seconds, doubling per attempt up to a maximum cap of 1 hour.",
+    "ground_truth_context": "doc_id_retry_policy"
+  }
+]

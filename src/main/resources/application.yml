@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: groundwork
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/groundwork}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cache:
+    type: redis
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:demo_key}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.0
+      embedding:
+        options:
+          model: text-embedding-3-small
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info
+  endpoint:
+    health:
+      show-details: always
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      hookshotStatusLookup:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 3
+
+groundwork:
+  hookshot:
+    base-url: ${HOOKSHOT_BASE_URL:http://localhost:8000}
+  cohere:
+    api-key: ${COHERE_API_KEY:demo_cohere_key}
+  jwt:
+    secret: ${JWT_SIGNING_SECRET:supersecretkeyforgroundworkjwttokengeneration12345}
+    expiration-ms: 900000
+    refresh-expiration-ms: 604800000
