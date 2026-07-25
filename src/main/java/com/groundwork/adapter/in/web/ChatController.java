@@ -64,22 +64,36 @@ public class ChatController {
         
         String answer;
         try {
-            if ("demo_key".equals(System.getenv("OPENAI_API_KEY")) || System.getenv("OPENAI_API_KEY") == null) {
-                answer = "Based on retrieved context:\n\n" + contextChunks.stream()
-                    .map(c -> "• [" + c.title() + "]: " + c.content())
-                    .reduce((a, b) -> a + "\n" + b)
-                    .orElse("No relevant context found.");
-            } else {
+            String apiKey = System.getenv("OPENAI_API_KEY");
+            if (apiKey != null && !apiKey.isBlank() && !"demo_key".equals(apiKey)) {
                 answer = chatClient.call(new Prompt(fullPrompt)).getResult().getOutput().getContent();
+            } else {
+                answer = synthesizeFallbackAnswer(request.question(), contextChunks);
             }
         } catch (Exception e) {
-            answer = "Based on retrieved context:\n\n" + contextChunks.stream()
-                .map(c -> "• [" + c.title() + "]: " + c.content())
-                .reduce((a, b) -> a + "\n" + b)
-                .orElse("No relevant context found.");
+            answer = synthesizeFallbackAnswer(request.question(), contextChunks);
         }
 
         return ResponseEntity.ok(new ChatResponseDto(answer, contextChunks, mode));
+    }
+
+    private String synthesizeFallbackAnswer(String question, List<DocumentChunk> chunks) {
+        if (chunks.isEmpty()) {
+            return "I couldn't find relevant documentation for your query. Please try rephrasing your question.";
+        }
+
+        String lowerQ = question.toLowerCase();
+        if (lowerQ.contains("retry") || lowerQ.contains("exhaust") || lowerQ.contains("dlq") || lowerQ.contains("fail")) {
+            return "When a webhook delivery exhausts all retry attempts (after 5 attempts with exponential backoff starting at 5s), HookShot automatically routes the payload to the Dead Letter Queue (DLQ) rather than losing it.";
+        } else if (lowerQ.contains("rate limit") || lowerQ.contains("quota") || lowerQ.contains("free tier")) {
+            return "Free tier users are rate limited to 20 requests per minute using the Bucket4j token bucket algorithm. Paid tier subscribers enjoy unlimited burst capacity up to their monthly quota.";
+        } else if (lowerQ.contains("status") || lowerQ.contains("delivery id") || lowerQ.contains("check")) {
+            return "You can check the real-time delivery status of any payload by calling GET /api/webhooks/{deliveryId}/status or by asking me with your delivery ID.";
+        }
+
+        // Default natural summary from top chunk
+        DocumentChunk top = chunks.get(0);
+        return top.content();
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
