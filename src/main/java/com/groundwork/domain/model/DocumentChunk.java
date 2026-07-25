@@ -1,5 +1,6 @@
 package com.groundwork.domain.model;
 
+import java.io.Serializable;
 import java.util.UUID;
 
 public record DocumentChunk(
@@ -9,4 +10,4 @@ public record DocumentChunk(
     String sourceType,
     String contentHash,
     double score
-) {}
+) implements Serializable {}
