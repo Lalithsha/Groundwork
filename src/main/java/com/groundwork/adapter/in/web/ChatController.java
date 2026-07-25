@@ -63,9 +63,19 @@ public class ChatController {
         
         String answer;
         try {
-            answer = chatClient.call(new Prompt(fullPrompt)).getResult().getOutput().getContent();
+            if ("demo_key".equals(System.getenv("OPENAI_API_KEY")) || System.getenv("OPENAI_API_KEY") == null) {
+                answer = "Based on retrieved context:\n\n" + contextChunks.stream()
+                    .map(c -> "• [" + c.title() + "]: " + c.content())
+                    .reduce((a, b) -> a + "\n" + b)
+                    .orElse("No relevant context found.");
+            } else {
+                answer = chatClient.call(new Prompt(fullPrompt)).getResult().getOutput().getContent();
+            }
         } catch (Exception e) {
-            answer = "Grounded response generated based on retrieved context chunks.";
+            answer = "Based on retrieved context:\n\n" + contextChunks.stream()
+                .map(c -> "• [" + c.title() + "]: " + c.content())
+                .reduce((a, b) -> a + "\n" + b)
+                .orElse("No relevant context found.");
         }
 
         return ResponseEntity.ok(new ChatResponseDto(answer, contextChunks, mode));
