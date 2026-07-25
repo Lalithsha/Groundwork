@@ -2,6 +2,8 @@ package com.groundwork.application;
 
 import com.groundwork.adapter.out.ai.CohereRerankAdapter;
 import com.groundwork.domain.model.DocumentChunk;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -15,14 +17,19 @@ public class RetrievalService {
 
     private final DocumentRepository documentRepository;
     private final CohereRerankAdapter rerankAdapter;
+    private final Counter hitCounter;
+    private final Counter missCounter;
 
-    public RetrievalService(DocumentRepository documentRepository, CohereRerankAdapter rerankAdapter) {
+    public RetrievalService(DocumentRepository documentRepository, CohereRerankAdapter rerankAdapter, MeterRegistry meterRegistry) {
         this.documentRepository = documentRepository;
         this.rerankAdapter = rerankAdapter;
+        this.hitCounter = meterRegistry.counter("cache.retrieval.hits");
+        this.missCounter = meterRegistry.counter("cache.retrieval.misses");
     }
 
     @Cacheable(value = "retrieval", key = "#query.hashCode() + ':' + #mode")
     public List<DocumentChunk> retrieve(String query, String mode, int limit) {
+        missCounter.increment();
         if ("naive".equalsIgnoreCase(mode)) {
             return documentRepository.searchVectorOnly(query, limit);
         }
