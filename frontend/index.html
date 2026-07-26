@@ -3,39 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Groundwork — Executive AI Knowledge Platform</title>
+  <title>Groundwork — Enterprise AI Knowledge Platform</title>
   <meta name="description" content="Enterprise-grade AI Knowledge Assistant with Hybrid Retrieval, RRF Reranking, and Document Ingestion." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
+  <!-- Ambient Mesh Background Glows -->
+  <div class="ambient-glow ambient-top-left"></div>
+  <div class="ambient-glow ambient-bottom-right"></div>
+
   <div id="app" class="app-layout">
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="brand">
-          <span class="logo-mark">⚡</span>
+          <div class="logo-mark">⚡</div>
           <span class="brand-title">Groundwork</span>
           <span class="version-tag">v1.0</span>
         </div>
       </div>
 
       <div class="sidebar-section">
-        <div class="section-title">RETRIEVAL MODE</div>
+        <div class="section-title">RETRIEVAL ENGINE</div>
         <select id="retrievalModeSelect" class="select-input">
-          <option value="hybrid_rerank">Hybrid (Vector + FTS + Rerank)</option>
-          <option value="naive">Naive (Vector Only)</option>
+          <option value="hybrid_rerank">⚡ Hybrid (Vector + FTS + Rerank)</option>
+          <option value="naive">🔍 Naive (Vector Only)</option>
         </select>
       </div>
 
       <div class="sidebar-section">
         <div class="section-title">DOCUMENT INGESTION</div>
         <div class="upload-dropzone" id="sidebarDropzone">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
           <div class="dropzone-text">
-            <span>Drop file or click to upload</span>
+            <span>Drop document or click to upload</span>
             <small>Supports .txt, .md, .json</small>
           </div>
           <input type="file" id="fileInput" accept=".txt,.md,.json" style="display: none;" />
@@ -67,11 +71,11 @@
 
     <!-- Main Workspace -->
     <main class="main-workspace">
-      <!-- Top Workspace Bar -->
+      <!-- Top Workspace Header -->
       <header class="workspace-header">
         <div class="header-info">
           <h2>AI Knowledge Assistant</h2>
-          <p>Ask questions across your ingested documents & knowledge base</p>
+          <p>Multi-document context retrieval powered by Hybrid Search & RRF Reranking</p>
         </div>
       </header>
 
@@ -84,24 +88,24 @@
         </div>
       </div>
 
-      <!-- Chat Stream -->
+      <!-- Chat Viewport -->
       <div class="chat-viewport" id="messageList">
         <div class="message assistant">
           <div class="avatar">AI</div>
           <div class="message-content">
             <div class="bubble">
-              Hello! I am your <strong>Groundwork AI Knowledge Assistant</strong>. Upload any document using the sidebar or paperclip button, or ask questions about your knowledge base.
+              Hello! I am your <strong>Groundwork AI Knowledge Assistant</strong>. Use the sidebar dropzone or paperclip attachment button below to upload documents and ask questions across your knowledge base.
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Floating Input Bar -->
+      <!-- Floating Input Panel -->
       <div class="input-container">
         <div class="prompt-suggestions">
-          <button class="chip" data-prompt="Summarize the uploaded documents">Summarize docs</button>
-          <button class="chip" data-prompt="What are the key technical concepts described?">Key concepts</button>
-          <button class="chip" data-prompt="What is the architecture and retry policy?">Architecture & retries</button>
+          <button class="chip" data-prompt="Summarize the uploaded documents">💡 Summarize docs</button>
+          <button class="chip" data-prompt="What are the key technical concepts described?">🔍 Key concepts</button>
+          <button class="chip" data-prompt="What is the architecture and retry policy?">⚡ Architecture & retries</button>
         </div>
 
         <form id="chatForm" class="input-form">
