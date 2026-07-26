@@ -9,6 +9,12 @@ const dropZoneOverlay = document.getElementById('dropZoneOverlay') as HTMLDivEle
 const sidebarDropzone = document.getElementById('sidebarDropzone') as HTMLDivElement;
 const corpusList = document.getElementById('corpusList') as HTMLDivElement;
 const mentionDropdown = document.getElementById('mentionDropdown') as HTMLDivElement;
+const toastContainer = document.getElementById('toastContainer') as HTMLDivElement;
+const confirmModal = document.getElementById('confirmModal') as HTMLDivElement;
+const modalTitle = document.getElementById('modalTitle') as HTMLHeadingElement;
+const modalMessage = document.getElementById('modalMessage') as HTMLDivElement;
+const modalCancelBtn = document.getElementById('modalCancelBtn') as HTMLButtonElement;
+const modalConfirmBtn = document.getElementById('modalConfirmBtn') as HTMLButtonElement;
 
 interface DocumentChunk {
   id: string;
@@ -20,6 +26,58 @@ interface DocumentChunk {
 
 let activeCorpusDocs: string[] = [];
 let selectedMentionIdx = 0;
+
+// Custom Toast Component Helper
+function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') {
+  if (!toastContainer) return;
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  
+  const icon = type === 'success' ? '✅' : (type === 'error' ? '⚠️' : (type === 'warning' ? '🔔' : 'ℹ️'));
+  toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+  
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(30px)';
+    toast.style.transition = 'all 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+// Custom Modal Promise Component Helper
+function showConfirmModal(title: string, message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!confirmModal || !modalTitle || !modalMessage || !modalCancelBtn || !modalConfirmBtn) {
+      resolve(confirm(`${title}\n${message}`));
+      return;
+    }
+
+    modalTitle.innerText = title;
+    modalMessage.innerText = message;
+    confirmModal.classList.remove('hidden');
+
+    const handleConfirm = () => {
+      cleanup();
+      confirmModal.classList.add('hidden');
+      resolve(true);
+    };
+
+    const handleCancel = () => {
+      cleanup();
+      confirmModal.classList.add('hidden');
+      resolve(false);
+    };
+
+    const cleanup = () => {
+      modalConfirmBtn.removeEventListener('click', handleConfirm);
+      modalCancelBtn.removeEventListener('click', handleCancel);
+    };
+
+    modalConfirmBtn.addEventListener('click', handleConfirm);
+    modalCancelBtn.addEventListener('click', handleCancel);
+  });
+}
 
 // Fetch documents on boot
 fetchCorpusDocs();
@@ -69,7 +127,9 @@ function renderCorpusList() {
 }
 
 async function deleteDocument(title: string) {
-  if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+  const confirmed = await showConfirmModal('Delete Document', `Are you sure you want to delete "${title}" from the knowledge corpus?`);
+  if (!confirmed) return;
+
   try {
     let res;
     try {
@@ -78,13 +138,14 @@ async function deleteDocument(title: string) {
       res = await fetch(`/api/documents?title=${encodeURIComponent(title)}`, { method: 'DELETE' });
     }
     if (res.ok) {
+      showToast(`Deleted "${title}"`, 'success');
       appendAssistantMessage(`🗑️ Deleted document "${title}" from vector store and cache.`);
       await fetchCorpusDocs();
     } else {
-      alert(`⚠️ Failed to delete document: ${title}`);
+      showToast(`Failed to delete "${title}"`, 'error');
     }
   } catch (err) {
-    alert('Error deleting document.');
+    showToast('Error deleting document', 'error');
   }
 }
 
@@ -218,13 +279,13 @@ reindexBtn.addEventListener('click', async () => {
       res = await fetch('/api/admin/reindex', { method: 'POST' });
     }
     if (res.status === 409) {
-      alert('⚠️ Re-index job already in progress!');
+      showToast('Re-index job already in progress', 'warning');
     } else {
       const data = await res.json();
-      alert(`⚡ Async re-index triggered! Job ID: ${data.jobId}`);
+      showToast(`Async re-index triggered! Job ID: ${data.jobId}`, 'success');
     }
   } catch (err) {
-    alert('Error triggering re-index job.');
+    showToast('Error triggering re-index job', 'error');
   }
 });
 
@@ -268,6 +329,7 @@ dropZoneOverlay?.addEventListener('drop', async (e: DragEvent) => {
 });
 
 async function processFileUpload(file: File) {
+  showToast(`Uploading "${file.name}"...`, 'info');
   const { bubbleDiv } = appendAssistantMessage(`📄 Uploading and indexing "${file.name}"...`);
 
   const formData = new FormData();
@@ -289,12 +351,15 @@ async function processFileUpload(file: File) {
 
     const data = await res.json();
     if (res.ok) {
+      showToast(`Uploaded "${data.filename}"`, 'success');
       bubbleDiv.innerText = `✅ Successfully uploaded "${data.filename}"! Indexed ${data.chunksIndexed} chunks into vector store. Ask me anything about it!`;
       await fetchCorpusDocs();
     } else {
+      showToast(`Upload failed: ${data.error}`, 'error');
       bubbleDiv.innerText = `⚠️ Upload failed: ${data.error}`;
     }
   } catch (err) {
+    showToast(`Error uploading "${file.name}"`, 'error');
     bubbleDiv.innerText = `⚠️ Error uploading document "${file.name}".`;
   }
 }

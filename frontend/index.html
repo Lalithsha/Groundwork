@@ -15,6 +15,25 @@
   <div class="ambient-glow ambient-top-left"></div>
   <div class="ambient-glow ambient-bottom-right"></div>
 
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Custom Confirmation Modal -->
+  <div id="confirmModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Confirm Action</h3>
+      </div>
+      <div class="modal-body" id="modalMessage">
+        Are you sure you want to proceed?
+      </div>
+      <div class="modal-actions">
+        <button id="modalCancelBtn" class="btn btn-secondary">Cancel</button>
+        <button id="modalConfirmBtn" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <div id="app" class="app-layout">
     <!-- Sidebar -->
     <aside class="sidebar">
