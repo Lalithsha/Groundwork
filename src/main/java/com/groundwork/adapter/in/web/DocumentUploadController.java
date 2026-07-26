@@ -55,19 +55,18 @@ public class DocumentUploadController {
 
         try {
             String filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "uploaded_doc.txt";
-            String content;
+            String rawContent;
 
             if (filename.toLowerCase().endsWith(".pdf")) {
                 try (PDDocument pdDocument = Loader.loadPDF(file.getBytes())) {
                     PDFTextStripper stripper = new PDFTextStripper();
-                    content = stripper.getText(pdDocument);
+                    rawContent = stripper.getText(pdDocument);
                 }
             } else {
-                content = new String(file.getBytes(), StandardCharsets.UTF_8);
+                rawContent = new String(file.getBytes(), StandardCharsets.UTF_8);
             }
 
-            // Sanitize null bytes (0x00) for PostgreSQL UTF-8 compatibility
-            content = content.replace("\u0000", "").trim();
+            String content = cleanExtractedText(rawContent);
 
             if (content.isBlank()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Document contains no readable text content."));
@@ -99,6 +98,26 @@ public class DocumentUploadController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", "Failed to process file: " + e.getMessage()));
         }
+    }
+
+    private String cleanExtractedText(String text) {
+        if (text == null) return "";
+        String cleaned = text.replace("\u0000", "");
+        String[] lines = cleaned.split("\n");
+        StringBuilder sb = new StringBuilder();
+
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.matches("(?i)^page \\d+ of \\d+.*") || 
+                trimmed.matches("(?i)^https?://.*") ||
+                trimmed.matches("(?i)^http://.*") ||
+                trimmed.matches("(?i)^\\d{1,2}/\\d{1,2}/\\d{2,4}.*") ||
+                trimmed.matches("(?i)^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}.*")) {
+                continue; // Strip browser print header/footer noise
+            }
+            sb.append(line).append("\n");
+        }
+        return sb.toString().trim();
     }
 
     private List<String> splitTextIntoChunks(String text, int chunkSize) {

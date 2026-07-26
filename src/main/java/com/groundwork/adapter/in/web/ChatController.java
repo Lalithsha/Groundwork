@@ -112,6 +112,13 @@ public class ChatController {
             for (String line : lines) {
                 String trimmed = line.trim();
                 if (!trimmed.isBlank() && trimmed.length() > 15) {
+                    if (trimmed.matches("(?i)^page \\d+ of \\d+.*") || 
+                        trimmed.matches("(?i)^https?://.*") ||
+                        trimmed.matches("(?i)^http://.*") ||
+                        trimmed.matches("(?i)^\\d{1,2}/\\d{1,2}/\\d{2,4}.*") ||
+                        trimmed.matches("(?i)^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}.*")) {
+                        continue; // Skip header/footer noise
+                    }
                     String cleanLine = trimmed.replaceAll("^[#\\-*•\\d.]+\\s*", "");
                     if (cleanLine.length() > 25 && keyPoints.size() < 7) {
                         keyPoints.add(cleanLine);
