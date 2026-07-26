@@ -43,6 +43,9 @@
   </div>
 
   <div id="app" class="flex h-screen w-screen relative z-10">
+    <!-- Hidden File Input for Attachments -->
+    <input type="file" id="fileInput" accept=".pdf,.txt,.md,.json" class="hidden" />
+
     <!-- Sidebar -->
     <aside class="w-72 bg-slate-900/90 border-r border-slate-800/80 flex flex-col p-5 gap-6 shrink-0 backdrop-blur-xl">
       <!-- Sidebar Header -->
@@ -65,23 +68,10 @@
         </select>
       </div>
 
-      <!-- Document Upload Dropzone -->
-      <div class="flex flex-col gap-2">
-        <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">DOCUMENT INGESTION</span>
-        <div id="sidebarDropzone" class="bg-slate-800/40 border border-dashed border-indigo-500/30 rounded-2xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-indigo-500 hover:bg-indigo-500/10 transition-all text-center group">
-          <svg class="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
-          <div class="flex flex-col gap-0.5">
-            <span class="text-xs font-semibold text-slate-200">Drop document or click</span>
-            <small class="text-[10px] text-slate-400">Supports .pdf, .txt, .md, .json</small>
-          </div>
-          <input type="file" id="fileInput" accept=".pdf,.txt,.md,.json" class="hidden" />
-        </div>
-      </div>
-
       <!-- Active Knowledge Corpus List -->
       <div class="flex flex-col gap-2 flex-1 overflow-hidden">
         <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">ACTIVE KNOWLEDGE CORPUS</span>
-        <div id="corpusList" class="flex flex-col gap-1.5 overflow-y-auto pr-1 max-h-[220px]">
+        <div id="corpusList" class="flex flex-col gap-1.5 overflow-y-auto pr-1 flex-1">
           <!-- Corpus items rendered dynamically -->
         </div>
       </div>
@@ -125,7 +115,7 @@
           </div>
           <div class="flex flex-col gap-2 max-w-[85%]">
             <div class="bg-slate-900/80 border border-slate-800 text-slate-100 rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed shadow-lg shadow-black/40 border-l-4 border-l-indigo-500">
-              Hello! I am your <strong>Groundwork AI Knowledge Assistant</strong>. Use the sidebar dropzone or paperclip attachment button below to upload documents and ask questions across your knowledge base.
+              Hello! I am your <strong>Groundwork AI Knowledge Assistant</strong>. Use the paperclip attachment button below or drag and drop any file anywhere on screen to upload documents to your knowledge base.
             </div>
           </div>
         </div>
