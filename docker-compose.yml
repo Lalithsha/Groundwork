@@ -19,6 +19,21 @@ services:
       - postgres
       - redis
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: groundwork-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8080
+    depends_on:
+      - app
+
   postgres:
     image: pgvector/pgvector:pg16
     container_name: groundwork-postgres
