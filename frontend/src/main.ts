@@ -3,6 +3,10 @@ const chatForm = document.getElementById('chatForm') as HTMLFormElement;
 const userInput = document.getElementById('userInput') as HTMLInputElement;
 const modeSelect = document.getElementById('retrievalModeSelect') as HTMLSelectElement;
 const reindexBtn = document.getElementById('reindexBtn') as HTMLButtonElement;
+const attachBtn = document.getElementById('attachBtn') as HTMLButtonElement;
+const fileInput = document.getElementById('fileInput') as HTMLInputElement;
+const chatContainer = document.getElementById('chatContainer') as HTMLDivElement;
+const dropZoneOverlay = document.getElementById('dropZoneOverlay') as HTMLDivElement;
 
 chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -57,45 +61,77 @@ reindexBtn.addEventListener('click', async () => {
   }
 });
 
-const uploadBtn = document.getElementById('uploadBtn') as HTMLButtonElement;
-const fileInput = document.getElementById('fileInput') as HTMLInputElement;
-
-if (uploadBtn && fileInput) {
-  uploadBtn.addEventListener('click', () => fileInput.click());
+if (attachBtn && fileInput) {
+  attachBtn.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      let res;
-      try {
-        res = await fetch('http://localhost:8080/api/documents/upload', {
-          method: 'POST',
-          body: formData
-        });
-      } catch (e) {
-        res = await fetch('/api/documents/upload', {
-          method: 'POST',
-          body: formData
-        });
-      }
-
-      const data = await res.json();
-      if (res.ok) {
-        alert(`✅ Uploaded "${data.filename}"! Indexed ${data.chunksIndexed} chunks into vector store.`);
-      } else {
-        alert(`⚠️ Upload failed: ${data.error}`);
-      }
-    } catch (err) {
-      alert('Error uploading document.');
-    } finally {
+    if (file) {
+      await processFileUpload(file);
       fileInput.value = '';
     }
   });
+}
+
+// Drag and Drop Handling
+if (chatContainer && dropZoneOverlay) {
+  ['dragenter', 'dragover'].forEach((eventName) => {
+    chatContainer.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZoneOverlay.classList.remove('hidden');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach((eventName) => {
+    dropZoneOverlay.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZoneOverlay.classList.add('hidden');
+    });
+  });
+
+  dropZoneOverlay.addEventListener('drop', async (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZoneOverlay.classList.add('hidden');
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      await processFileUpload(files[0]);
+    }
+  });
+}
+
+async function processFileUpload(file: File) {
+  const statusBubble = appendMessage('assistant', `📄 Uploading and indexing "${file.name}"...`);
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    let res;
+    try {
+      res = await fetch('http://localhost:8080/api/documents/upload', {
+        method: 'POST',
+        body: formData
+      });
+    } catch (e) {
+      res = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData
+      });
+    }
+
+    const data = await res.json();
+    if (res.ok) {
+      statusBubble.innerText = `✅ Successfully uploaded "${data.filename}"! Indexed ${data.chunksIndexed} chunks into vector store. Ask me anything about it!`;
+    } else {
+      statusBubble.innerText = `⚠️ Upload failed: ${data.error}`;
+    }
+  } catch (err) {
+    statusBubble.innerText = `⚠️ Error uploading document "${file.name}".`;
+  }
 }
 
 function appendMessage(sender: 'user' | 'assistant', text: string): HTMLDivElement {

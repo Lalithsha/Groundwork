@@ -132,6 +132,21 @@ select {
   transform: translateY(-1px);
 }
 
+.attach-btn {
+  padding: 10px;
+  border-radius: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attach-btn:hover {
+  color: var(--text-main);
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
 .chat-container {
   flex: 1;
   display: flex;
@@ -141,6 +156,49 @@ select {
   border: 1px solid var(--border-color);
   border-radius: 16px;
   overflow: hidden;
+  position: relative;
+}
+
+.drop-zone-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(11, 15, 25, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--accent-primary);
+  border-radius: 16px;
+  transition: opacity 0.2s ease;
+}
+
+.drop-zone-overlay.hidden {
+  display: none;
+}
+
+.drop-zone-content {
+  text-align: center;
+  color: var(--text-main);
+}
+
+.drop-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.drop-zone-content h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
+  color: #818cf8;
+}
+
+.drop-zone-content p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
 }
 
 .messages {
