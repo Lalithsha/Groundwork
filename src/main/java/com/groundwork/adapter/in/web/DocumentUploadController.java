@@ -1,6 +1,9 @@
 package com.groundwork.adapter.in.web;
 
 import com.groundwork.application.DocumentRepository;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,7 +36,23 @@ public class DocumentUploadController {
 
         try {
             String filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "uploaded_doc.txt";
-            String content = new String(file.getBytes(), StandardCharsets.UTF_8);
+            String content;
+
+            if (filename.toLowerCase().endsWith(".pdf")) {
+                try (PDDocument pdDocument = Loader.loadPDF(file.getBytes())) {
+                    PDFTextStripper stripper = new PDFTextStripper();
+                    content = stripper.getText(pdDocument);
+                }
+            } else {
+                content = new String(file.getBytes(), StandardCharsets.UTF_8);
+            }
+
+            // Sanitize null bytes (0x00) for PostgreSQL UTF-8 compatibility
+            content = content.replace("\u0000", "").trim();
+
+            if (content.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Document contains no readable text content."));
+            }
 
             List<String> chunks = splitTextIntoChunks(content, 500);
             int savedCount = 0;
@@ -41,7 +60,8 @@ public class DocumentUploadController {
             for (String chunkText : chunks) {
                 if (chunkText.isBlank()) continue;
                 String hash = sha256(chunkText);
-                String sourceType = filename.endsWith(".md") || filename.endsWith(".txt") ? "readme" : "api_doc";
+                String sourceType = filename.toLowerCase().endsWith(".pdf") ? "api_doc" :
+                                   (filename.toLowerCase().endsWith(".md") || filename.toLowerCase().endsWith(".txt") ? "readme" : "api_doc");
                 documentRepository.save(filename, chunkText, sourceType, hash);
                 savedCount++;
             }
