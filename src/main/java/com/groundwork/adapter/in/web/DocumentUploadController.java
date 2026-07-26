@@ -1,7 +1,7 @@
 package com.groundwork.adapter.in.web;
 
 import com.groundwork.application.DocumentRepository;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,10 +17,10 @@ import java.util.*;
 public class DocumentUploadController {
 
     private final DocumentRepository documentRepository;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
 
     public DocumentUploadController(DocumentRepository documentRepository,
-                                    RedisTemplate<String, Object> redisTemplate) {
+                                    StringRedisTemplate redisTemplate) {
         this.documentRepository = documentRepository;
         this.redisTemplate = redisTemplate;
     }
