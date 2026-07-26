@@ -5,9 +5,9 @@ const modeSelect = document.getElementById('retrievalModeSelect') as HTMLSelectE
 const reindexBtn = document.getElementById('reindexBtn') as HTMLButtonElement;
 const attachBtn = document.getElementById('attachBtn') as HTMLButtonElement;
 const fileInput = document.getElementById('fileInput') as HTMLInputElement;
-const chatContainer = document.getElementById('chatContainer') as HTMLDivElement;
 const dropZoneOverlay = document.getElementById('dropZoneOverlay') as HTMLDivElement;
-const suggestionChips = document.getElementById('suggestionChips') as HTMLDivElement;
+const sidebarDropzone = document.getElementById('sidebarDropzone') as HTMLDivElement;
+const corpusList = document.getElementById('corpusList') as HTMLDivElement;
 
 interface DocumentChunk {
   id: string;
@@ -22,7 +22,7 @@ chatForm.addEventListener('submit', async (e) => {
   const text = userInput.value.trim();
   if (!text) return;
 
-  appendMessage('user', text);
+  appendUserMessage(text);
   userInput.value = '';
 
   const { bubbleDiv, messageContent } = appendAssistantMessage('Thinking...');
@@ -47,7 +47,6 @@ chatForm.addEventListener('submit', async (e) => {
     const data = await response.json();
     bubbleDiv.innerText = data.answer || 'Response received.';
 
-    // Render Collapsible Context Inspection Drawer if contextChunks exist
     if (data.retrievedContexts && data.retrievedContexts.length > 0) {
       appendContextDrawer(messageContent, data.retrievedContexts);
     }
@@ -57,18 +56,16 @@ chatForm.addEventListener('submit', async (e) => {
 });
 
 // Wire Suggestion Chips
-if (suggestionChips) {
-  suggestionChips.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    if (target.classList.contains('chip')) {
-      const prompt = target.getAttribute('data-prompt');
-      if (prompt) {
-        userInput.value = prompt;
-        chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
-      }
+document.addEventListener('click', (e) => {
+  const target = e.target as HTMLElement;
+  if (target.classList.contains('chip')) {
+    const prompt = target.getAttribute('data-prompt');
+    if (prompt) {
+      userInput.value = prompt;
+      chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
     }
-  });
-}
+  }
+});
 
 reindexBtn.addEventListener('click', async () => {
   try {
@@ -91,7 +88,13 @@ reindexBtn.addEventListener('click', async () => {
 
 if (attachBtn && fileInput) {
   attachBtn.addEventListener('click', () => fileInput.click());
+}
 
+if (sidebarDropzone && fileInput) {
+  sidebarDropzone.addEventListener('click', () => fileInput.click());
+}
+
+if (fileInput) {
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     if (file) {
@@ -102,34 +105,25 @@ if (attachBtn && fileInput) {
 }
 
 // Drag & Drop File Upload
-if (chatContainer && dropZoneOverlay) {
-  ['dragenter', 'dragover'].forEach((eventName) => {
-    chatContainer.addEventListener(eventName, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dropZoneOverlay.classList.remove('hidden');
-    });
-  });
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZoneOverlay?.classList.remove('hidden');
+});
 
-  ['dragleave', 'drop'].forEach((eventName) => {
-    dropZoneOverlay.addEventListener(eventName, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dropZoneOverlay.classList.add('hidden');
-    });
-  });
+dropZoneOverlay?.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  dropZoneOverlay.classList.add('hidden');
+});
 
-  dropZoneOverlay.addEventListener('drop', async (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropZoneOverlay.classList.add('hidden');
+dropZoneOverlay?.addEventListener('drop', async (e: DragEvent) => {
+  e.preventDefault();
+  dropZoneOverlay.classList.add('hidden');
 
-    const files = e.dataTransfer?.files;
-    if (files && files.length > 0) {
-      await processFileUpload(files[0]);
-    }
-  });
-}
+  const files = e.dataTransfer?.files;
+  if (files && files.length > 0) {
+    await processFileUpload(files[0]);
+  }
+});
 
 async function processFileUpload(file: File) {
   const { bubbleDiv } = appendAssistantMessage(`📄 Uploading and indexing "${file.name}"...`);
@@ -154,6 +148,7 @@ async function processFileUpload(file: File) {
     const data = await res.json();
     if (res.ok) {
       bubbleDiv.innerText = `✅ Successfully uploaded "${data.filename}"! Indexed ${data.chunksIndexed} chunks into vector store. Ask me anything about it!`;
+      addCorpusItem(data.filename);
     } else {
       bubbleDiv.innerText = `⚠️ Upload failed: ${data.error}`;
     }
@@ -162,9 +157,17 @@ async function processFileUpload(file: File) {
   }
 }
 
-function appendMessage(sender: 'user', text: string): HTMLDivElement {
+function addCorpusItem(filename: string) {
+  if (!corpusList) return;
+  const item = document.createElement('div');
+  item.className = 'corpus-item';
+  item.innerHTML = `<span class="file-icon">📄</span><span class="file-name">${filename}</span>`;
+  corpusList.prepend(item);
+}
+
+function appendUserMessage(text: string): HTMLDivElement {
   const msgDiv = document.createElement('div');
-  msgDiv.className = `message ${sender}`;
+  msgDiv.className = 'message user';
 
   const avatarDiv = document.createElement('div');
   avatarDiv.className = 'avatar';
