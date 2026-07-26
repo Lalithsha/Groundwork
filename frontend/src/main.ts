@@ -7,6 +7,15 @@ const attachBtn = document.getElementById('attachBtn') as HTMLButtonElement;
 const fileInput = document.getElementById('fileInput') as HTMLInputElement;
 const chatContainer = document.getElementById('chatContainer') as HTMLDivElement;
 const dropZoneOverlay = document.getElementById('dropZoneOverlay') as HTMLDivElement;
+const suggestionChips = document.getElementById('suggestionChips') as HTMLDivElement;
+
+interface DocumentChunk {
+  id: string;
+  title: string;
+  content: string;
+  sourceType: string;
+  score: number;
+}
 
 chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -16,7 +25,7 @@ chatForm.addEventListener('submit', async (e) => {
   appendMessage('user', text);
   userInput.value = '';
 
-  const assistantBubble = appendMessage('assistant', 'Thinking...');
+  const { bubbleDiv, messageContent } = appendAssistantMessage('Thinking...');
   const mode = modeSelect.value;
 
   try {
@@ -36,11 +45,30 @@ chatForm.addEventListener('submit', async (e) => {
     }
 
     const data = await response.json();
-    assistantBubble.innerText = data.answer || 'Response received.';
+    bubbleDiv.innerText = data.answer || 'Response received.';
+
+    // Render Collapsible Context Inspection Drawer if contextChunks exist
+    if (data.retrievedContexts && data.retrievedContexts.length > 0) {
+      appendContextDrawer(messageContent, data.retrievedContexts);
+    }
   } catch (err) {
-    assistantBubble.innerText = 'Failed to connect to Groundwork backend.';
+    bubbleDiv.innerText = 'Failed to connect to Groundwork backend.';
   }
 });
+
+// Wire Suggestion Chips
+if (suggestionChips) {
+  suggestionChips.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('chip')) {
+      const prompt = target.getAttribute('data-prompt');
+      if (prompt) {
+        userInput.value = prompt;
+        chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+      }
+    }
+  });
+}
 
 reindexBtn.addEventListener('click', async () => {
   try {
@@ -73,7 +101,7 @@ if (attachBtn && fileInput) {
   });
 }
 
-// Drag and Drop Handling
+// Drag & Drop File Upload
 if (chatContainer && dropZoneOverlay) {
   ['dragenter', 'dragover'].forEach((eventName) => {
     chatContainer.addEventListener(eventName, (e) => {
@@ -104,7 +132,7 @@ if (chatContainer && dropZoneOverlay) {
 }
 
 async function processFileUpload(file: File) {
-  const statusBubble = appendMessage('assistant', `📄 Uploading and indexing "${file.name}"...`);
+  const { bubbleDiv } = appendAssistantMessage(`📄 Uploading and indexing "${file.name}"...`);
 
   const formData = new FormData();
   formData.append('file', file);
@@ -125,22 +153,22 @@ async function processFileUpload(file: File) {
 
     const data = await res.json();
     if (res.ok) {
-      statusBubble.innerText = `✅ Successfully uploaded "${data.filename}"! Indexed ${data.chunksIndexed} chunks into vector store. Ask me anything about it!`;
+      bubbleDiv.innerText = `✅ Successfully uploaded "${data.filename}"! Indexed ${data.chunksIndexed} chunks into vector store. Ask me anything about it!`;
     } else {
-      statusBubble.innerText = `⚠️ Upload failed: ${data.error}`;
+      bubbleDiv.innerText = `⚠️ Upload failed: ${data.error}`;
     }
   } catch (err) {
-    statusBubble.innerText = `⚠️ Error uploading document "${file.name}".`;
+    bubbleDiv.innerText = `⚠️ Error uploading document "${file.name}".`;
   }
 }
 
-function appendMessage(sender: 'user' | 'assistant', text: string): HTMLDivElement {
+function appendMessage(sender: 'user', text: string): HTMLDivElement {
   const msgDiv = document.createElement('div');
   msgDiv.className = `message ${sender}`;
 
   const avatarDiv = document.createElement('div');
   avatarDiv.className = 'avatar';
-  avatarDiv.innerText = sender === 'user' ? 'YOU' : 'AI';
+  avatarDiv.innerText = 'YOU';
 
   const bubbleDiv = document.createElement('div');
   bubbleDiv.className = 'bubble';
@@ -152,4 +180,61 @@ function appendMessage(sender: 'user' | 'assistant', text: string): HTMLDivEleme
   messageList.scrollTop = messageList.scrollHeight;
 
   return bubbleDiv;
+}
+
+function appendAssistantMessage(text: string): { bubbleDiv: HTMLDivElement; messageContent: HTMLDivElement } {
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'message assistant';
+
+  const avatarDiv = document.createElement('div');
+  avatarDiv.className = 'avatar';
+  avatarDiv.innerText = 'AI';
+
+  const messageContent = document.createElement('div');
+  messageContent.className = 'message-content';
+
+  const bubbleDiv = document.createElement('div');
+  bubbleDiv.className = 'bubble';
+  bubbleDiv.innerText = text;
+
+  messageContent.appendChild(bubbleDiv);
+  msgDiv.appendChild(avatarDiv);
+  msgDiv.appendChild(messageContent);
+  messageList.appendChild(msgDiv);
+  messageList.scrollTop = messageList.scrollHeight;
+
+  return { bubbleDiv, messageContent };
+}
+
+function appendContextDrawer(container: HTMLDivElement, chunks: DocumentChunk[]) {
+  const drawer = document.createElement('div');
+  drawer.className = 'context-drawer';
+
+  const header = document.createElement('div');
+  header.className = 'context-header';
+  header.innerHTML = `<span>🔍 Inspect ${chunks.length} Retrieved Context Chunks</span> <span>▼</span>`;
+
+  const body = document.createElement('div');
+  body.className = 'context-body';
+  body.style.display = 'none';
+
+  chunks.forEach((chunk) => {
+    const item = document.createElement('div');
+    item.className = 'context-item';
+    item.innerHTML = `
+      <div class="context-item-title">${chunk.title || 'Document Chunk'} (Score: ${chunk.score ? chunk.score.toFixed(4) : '1.0'})</div>
+      <div>${chunk.content}</div>
+    `;
+    body.appendChild(item);
+  });
+
+  header.addEventListener('click', () => {
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'flex';
+    header.querySelector('span:last-child')!.textContent = isOpen ? '▼' : '▲';
+  });
+
+  drawer.appendChild(header);
+  drawer.appendChild(body);
+  container.appendChild(drawer);
 }
