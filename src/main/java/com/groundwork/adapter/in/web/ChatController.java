@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -83,16 +83,41 @@ public class ChatController {
         String lowerQ = question.toLowerCase().trim();
 
         if (lowerQ.matches("^(hi|hello|hey|greetings|hola|good morning|good afternoon|good evening)[!.]?$")) {
-            return "Hello! I am your Groundwork AI Document & Knowledge Assistant. Upload any document using the 📄 Upload File button or ask questions about your uploaded documents!";
+            return "Hello! I am your Groundwork AI Document & Knowledge Assistant. Upload any document using the sidebar dropzone or paperclip attachment button below, or ask questions across your knowledge base!";
         }
 
-        if (chunks.isEmpty()) {
-            return "I couldn't find relevant information for your question in the uploaded documents. Please upload a document using the 📄 Upload File button.";
+        if (chunks == null || chunks.isEmpty()) {
+            return "I couldn't find relevant information for your question in the uploaded documents. Please try uploading a document or rephrasing your question.";
         }
 
+        String docTitle = chunks.get(0).title() != null ? chunks.get(0).title() : "Uploaded Document";
         StringBuilder answerBuilder = new StringBuilder();
-        answerBuilder.append("Based on your document (\"").append(chunks.get(0).title()).append("\"):\n\n");
-        answerBuilder.append(chunks.get(0).content());
+        answerBuilder.append("Based on **").append(docTitle).append("**:\n\n");
+
+        Set<String> keyPoints = new LinkedHashSet<>();
+        for (DocumentChunk chunk : chunks) {
+            String content = chunk.content();
+            String[] lines = content.split("\n");
+            for (String line : lines) {
+                String trimmed = line.trim();
+                if (!trimmed.isBlank() && trimmed.length() > 15) {
+                    String cleanLine = trimmed.replaceAll("^[#\\-*•\\d.]+\\s*", "");
+                    if (cleanLine.length() > 25 && keyPoints.size() < 7) {
+                        keyPoints.add(cleanLine);
+                    }
+                }
+            }
+        }
+
+        if (!keyPoints.isEmpty()) {
+            answerBuilder.append("Key details retrieved from your document:\n\n");
+            for (String point : keyPoints) {
+                answerBuilder.append("• ").append(point).append("\n");
+            }
+        } else {
+            answerBuilder.append(chunks.get(0).content());
+        }
+
         return answerBuilder.toString();
     }
 
