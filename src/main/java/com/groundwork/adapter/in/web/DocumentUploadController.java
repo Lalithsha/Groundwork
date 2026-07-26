@@ -41,7 +41,8 @@ public class DocumentUploadController {
             for (String chunkText : chunks) {
                 if (chunkText.isBlank()) continue;
                 String hash = sha256(chunkText);
-                documentRepository.save(filename, chunkText, "custom_upload", hash);
+                String sourceType = filename.endsWith(".md") || filename.endsWith(".txt") ? "readme" : "api_doc";
+                documentRepository.save(filename, chunkText, sourceType, hash);
                 savedCount++;
             }
 
