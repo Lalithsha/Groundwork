@@ -207,11 +207,14 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
 }
 
 .corpus-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.6rem;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
@@ -228,10 +231,34 @@ body {
   background: rgba(30, 41, 59, 0.8);
 }
 
+.corpus-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
 .file-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .sidebar-footer {
@@ -477,7 +504,7 @@ body {
   margin-bottom: 3px;
 }
 
-/* Input Area & Chips */
+/* Input Area & Mention Dropdown */
 .input-container {
   padding: 1.25rem 2.25rem 1.75rem 2.25rem;
   display: flex;
@@ -486,6 +513,42 @@ body {
   max-width: 950px;
   margin: 0 auto;
   width: 100%;
+  position: relative;
+}
+
+.mention-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 2.25rem;
+  right: 2.25rem;
+  margin-bottom: 0.5rem;
+  background: #0f172a;
+  border: 1px solid var(--accent-indigo);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.mention-dropdown.hidden {
+  display: none;
+}
+
+.mention-item {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.mention-item:hover, .mention-item.selected {
+  background: rgba(99, 102, 241, 0.2);
+  color: #ffffff;
 }
 
 .prompt-suggestions {

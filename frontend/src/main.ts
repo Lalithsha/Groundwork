@@ -8,6 +8,7 @@ const fileInput = document.getElementById('fileInput') as HTMLInputElement;
 const dropZoneOverlay = document.getElementById('dropZoneOverlay') as HTMLDivElement;
 const sidebarDropzone = document.getElementById('sidebarDropzone') as HTMLDivElement;
 const corpusList = document.getElementById('corpusList') as HTMLDivElement;
+const mentionDropdown = document.getElementById('mentionDropdown') as HTMLDivElement;
 
 interface DocumentChunk {
   id: string;
@@ -17,11 +18,83 @@ interface DocumentChunk {
   score: number;
 }
 
+let activeCorpusDocs: string[] = [];
+let selectedMentionIdx = 0;
+
+// Fetch documents on boot
+fetchCorpusDocs();
+
+async function fetchCorpusDocs() {
+  try {
+    let res;
+    try {
+      res = await fetch('http://localhost:8080/api/documents');
+    } catch (e) {
+      res = await fetch('/api/documents');
+    }
+    if (res.ok) {
+      activeCorpusDocs = await res.json();
+      renderCorpusList();
+    }
+  } catch (err) {
+    console.error('Failed to fetch corpus documents', err);
+  }
+}
+
+function renderCorpusList() {
+  if (!corpusList) return;
+  corpusList.innerHTML = '';
+  if (activeCorpusDocs.length === 0) {
+    corpusList.innerHTML = '<div style="font-size: 0.8rem; color: #94a3b8; padding: 4px;">No documents uploaded yet</div>';
+    return;
+  }
+  activeCorpusDocs.forEach((docTitle) => {
+    const item = document.createElement('div');
+    item.className = 'corpus-item';
+    item.innerHTML = `
+      <div class="corpus-info">
+        <span class="file-icon">📄</span>
+        <span class="file-name" title="${docTitle}">${docTitle}</span>
+      </div>
+      <button class="delete-btn" data-title="${docTitle}" title="Delete Document">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+      </button>
+    `;
+    item.querySelector('.delete-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteDocument(docTitle);
+    });
+    corpusList.appendChild(item);
+  });
+}
+
+async function deleteDocument(title: string) {
+  if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+  try {
+    let res;
+    try {
+      res = await fetch(`http://localhost:8080/api/documents?title=${encodeURIComponent(title)}`, { method: 'DELETE' });
+    } catch (e) {
+      res = await fetch(`/api/documents?title=${encodeURIComponent(title)}`, { method: 'DELETE' });
+    }
+    if (res.ok) {
+      appendAssistantMessage(`🗑️ Deleted document "${title}" from vector store and cache.`);
+      await fetchCorpusDocs();
+    } else {
+      alert(`⚠️ Failed to delete document: ${title}`);
+    }
+  } catch (err) {
+    alert('Error deleting document.');
+  }
+}
+
+// Chat Form Submission
 chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const text = userInput.value.trim();
   if (!text) return;
 
+  hideMentionDropdown();
   appendUserMessage(text);
   userInput.value = '';
 
@@ -54,6 +127,75 @@ chatForm.addEventListener('submit', async (e) => {
     bubbleDiv.innerText = 'Failed to connect to Groundwork backend.';
   }
 });
+
+// @ Mention Autocomplete Handling
+userInput.addEventListener('input', () => {
+  const val = userInput.value;
+  const atIdx = val.lastIndexOf('@');
+  if (atIdx !== -1) {
+    const query = val.substring(atIdx + 1).toLowerCase();
+    const matches = activeCorpusDocs.filter(d => d.toLowerCase().includes(query));
+    if (matches.length > 0) {
+      renderMentionDropdown(matches, atIdx);
+      return;
+    }
+  }
+  hideMentionDropdown();
+});
+
+userInput.addEventListener('keydown', (e) => {
+  if (!mentionDropdown.classList.contains('hidden')) {
+    const items = mentionDropdown.querySelectorAll('.mention-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedMentionIdx = (selectedMentionIdx + 1) % items.length;
+      updateMentionHighlight(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedMentionIdx = (selectedMentionIdx - 1 + items.length) % items.length;
+      updateMentionHighlight(items);
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      (items[selectedMentionIdx] as HTMLElement)?.click();
+    } else if (e.key === 'Escape') {
+      hideMentionDropdown();
+    }
+  }
+});
+
+function renderMentionDropdown(matches: string[], atIdx: number) {
+  mentionDropdown.innerHTML = '';
+  selectedMentionIdx = 0;
+
+  matches.forEach((docTitle, idx) => {
+    const item = document.createElement('div');
+    item.className = `mention-item ${idx === 0 ? 'selected' : ''}`;
+    item.innerHTML = `<span>📄</span> <span>${docTitle}</span>`;
+    item.addEventListener('click', () => {
+      const beforeAt = userInput.value.substring(0, atIdx);
+      userInput.value = `${beforeAt}@${docTitle} `;
+      userInput.focus();
+      hideMentionDropdown();
+    });
+    mentionDropdown.appendChild(item);
+  });
+
+  mentionDropdown.classList.remove('hidden');
+}
+
+function updateMentionHighlight(items: NodeListOf<Element>) {
+  items.forEach((item, idx) => {
+    if (idx === selectedMentionIdx) {
+      item.classList.add('selected');
+    } else {
+      item.classList.remove('selected');
+    }
+  });
+}
+
+function hideMentionDropdown() {
+  mentionDropdown.classList.add('hidden');
+}
 
 // Wire Suggestion Chips
 document.addEventListener('click', (e) => {
@@ -148,21 +290,13 @@ async function processFileUpload(file: File) {
     const data = await res.json();
     if (res.ok) {
       bubbleDiv.innerText = `✅ Successfully uploaded "${data.filename}"! Indexed ${data.chunksIndexed} chunks into vector store. Ask me anything about it!`;
-      addCorpusItem(data.filename);
+      await fetchCorpusDocs();
     } else {
       bubbleDiv.innerText = `⚠️ Upload failed: ${data.error}`;
     }
   } catch (err) {
     bubbleDiv.innerText = `⚠️ Error uploading document "${file.name}".`;
   }
-}
-
-function addCorpusItem(filename: string) {
-  if (!corpusList) return;
-  const item = document.createElement('div');
-  item.className = 'corpus-item';
-  item.innerHTML = `<span class="file-icon">📄</span><span class="file-name">${filename}</span>`;
-  corpusList.prepend(item);
 }
 
 function appendUserMessage(text: string): HTMLDivElement {

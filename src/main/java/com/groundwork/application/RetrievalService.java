@@ -27,16 +27,20 @@ public class RetrievalService {
         this.missCounter = meterRegistry.counter("cache.retrieval.misses");
     }
 
-    @Cacheable(value = "retrieval", key = "#query.hashCode() + ':' + #mode")
     public List<DocumentChunk> retrieve(String query, String mode, int limit) {
+        return retrieve(query, mode, null, limit);
+    }
+
+    @Cacheable(value = "retrieval", key = "#query.hashCode() + ':' + #mode + ':' + (#docFilter != null ? #docFilter : 'all')")
+    public List<DocumentChunk> retrieve(String query, String mode, String docFilter, int limit) {
         missCounter.increment();
         if ("naive".equalsIgnoreCase(mode)) {
-            return documentRepository.searchVectorOnly(query, limit);
+            return documentRepository.searchVectorOnly(query, docFilter, limit);
         }
 
         // Hybrid mode: Fetch candidates from both Vector search and Full-Text search
-        List<DocumentChunk> vectorResults = documentRepository.searchVectorOnly(query, 20);
-        List<DocumentChunk> keywordResults = documentRepository.searchKeywordOnly(query, 20);
+        List<DocumentChunk> vectorResults = documentRepository.searchVectorOnly(query, docFilter, 20);
+        List<DocumentChunk> keywordResults = documentRepository.searchKeywordOnly(query, docFilter, 20);
 
         // Reciprocal Rank Fusion (RRF)
         Map<UUID, Double> rrfScores = new HashMap<>();
@@ -66,10 +70,5 @@ public class RetrievalService {
             double currentScore = scores.getOrDefault(doc.id(), 0.0);
             scores.put(doc.id(), currentScore + (1.0 / (RRF_K + rank + 1)));
         }
-    }
-
-    private List<DocumentChunk> rerankCandidates(String query, List<DocumentChunk> candidates, int topK) {
-        // Returns candidates sorted by score up to topK
-        return candidates.stream().limit(topK).toList();
     }
 }

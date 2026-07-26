@@ -28,6 +28,25 @@ public class DocumentUploadController {
         this.redisTemplate = redisTemplate;
     }
 
+    @GetMapping
+    public ResponseEntity<List<String>> listDocuments() {
+        return ResponseEntity.ok(documentRepository.findAllTitles());
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Map<String, Object>> deleteDocument(@RequestParam("title") String title) {
+        try {
+            documentRepository.deleteByTitle(title);
+            Set<String> keys = redisTemplate.keys("retrieval::*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+            return ResponseEntity.ok(Map.of("message", "Document deleted successfully", "title", title));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to delete document: " + e.getMessage()));
+        }
+    }
+
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> uploadDocument(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
