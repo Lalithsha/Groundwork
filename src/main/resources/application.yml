@@ -19,12 +19,15 @@ spring:
   cache:
     type: redis
   ai:
+    retry:
+      max-attempts: 1
+      enabled: false
     openai:
       api-key: ${GEMINI_API_KEY:${OPENAI_API_KEY:demo_key}}
       base-url: ${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}
       chat:
         options:
-          model: ${AI_MODEL:gemini-2.0-flash}
+          model: ${AI_MODEL:gemini-1.5-flash}
           temperature: 0.0
 
 server:

@@ -74,7 +74,8 @@ public class ChatController {
             } else {
                 answer = synthesizeFallbackAnswer(request.question(), contextChunks);
             }
-        } catch (Exception e) {
+        } catch (Throwable t) {
+            System.err.println("LLM API call threw exception (" + t.getMessage() + "), using instant fast fallback.");
             answer = synthesizeFallbackAnswer(request.question(), contextChunks);
         }
 
