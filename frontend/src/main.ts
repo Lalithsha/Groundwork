@@ -57,6 +57,47 @@ reindexBtn.addEventListener('click', async () => {
   }
 });
 
+const uploadBtn = document.getElementById('uploadBtn') as HTMLButtonElement;
+const fileInput = document.getElementById('fileInput') as HTMLInputElement;
+
+if (uploadBtn && fileInput) {
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      let res;
+      try {
+        res = await fetch('http://localhost:8080/api/documents/upload', {
+          method: 'POST',
+          body: formData
+        });
+      } catch (e) {
+        res = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData
+        });
+      }
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ Uploaded "${data.filename}"! Indexed ${data.chunksIndexed} chunks into vector store.`);
+      } else {
+        alert(`⚠️ Upload failed: ${data.error}`);
+      }
+    } catch (err) {
+      alert('Error uploading document.');
+    } finally {
+      fileInput.value = '';
+    }
+  });
+}
+
 function appendMessage(sender: 'user' | 'assistant', text: string): HTMLDivElement {
   const msgDiv = document.createElement('div');
   msgDiv.className = `message ${sender}`;

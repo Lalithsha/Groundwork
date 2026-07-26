@@ -83,11 +83,16 @@ public class ChatController {
     }
 
     private String synthesizeFallbackAnswer(String question, List<DocumentChunk> chunks) {
-        if (chunks.isEmpty()) {
-            return "I couldn't find relevant documentation for your query. Please try rephrasing your question.";
+        String lowerQ = question.toLowerCase().trim();
+
+        if (lowerQ.matches("^(hi|hello|hey|greetings|hola|good morning|good afternoon|good evening)[!.]?$")) {
+            return "Hello! I am your Groundwork Support Assistant. Ask me anything about HookShot webhooks, delivery retries, DLQ policies, or upload your own custom document using the 📄 Upload File button!";
         }
 
-        String lowerQ = question.toLowerCase();
+        if (chunks.isEmpty()) {
+            return "I couldn't find relevant documentation for your query. Please try rephrasing your question or upload a document.";
+        }
+
         if (lowerQ.contains("retry") || lowerQ.contains("exhaust") || lowerQ.contains("dlq") || lowerQ.contains("fail")) {
             return "When a webhook delivery exhausts all retry attempts (after 5 attempts with exponential backoff starting at 5s), HookShot automatically routes the payload to the Dead Letter Queue (DLQ) rather than losing it.";
         } else if (lowerQ.contains("rate limit") || lowerQ.contains("quota") || lowerQ.contains("free tier")) {
@@ -96,7 +101,6 @@ public class ChatController {
             return "You can check the real-time delivery status of any payload by calling GET /api/webhooks/{deliveryId}/status or by asking me with your delivery ID.";
         }
 
-        // Default natural summary from top chunk
         DocumentChunk top = chunks.get(0);
         return top.content();
     }
