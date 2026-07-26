@@ -1,8 +1,6 @@
 package com.groundwork.adapter.in.web;
 
-import com.groundwork.infrastructure.persistence.DocumentEntity;
-import com.groundwork.infrastructure.persistence.SpringDataDocumentRepository;
-import org.springframework.ai.embedding.EmbeddingModel;
+import com.groundwork.application.DocumentRepository;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,15 +16,12 @@ import java.util.*;
 @RequestMapping("/api/documents")
 public class DocumentUploadController {
 
-    private final SpringDataDocumentRepository documentRepository;
-    private final EmbeddingModel embeddingModel;
+    private final DocumentRepository documentRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
-    public DocumentUploadController(SpringDataDocumentRepository documentRepository,
-                                    EmbeddingModel embeddingModel,
+    public DocumentUploadController(DocumentRepository documentRepository,
                                     RedisTemplate<String, Object> redisTemplate) {
         this.documentRepository = documentRepository;
-        this.embeddingModel = embeddingModel;
         this.redisTemplate = redisTemplate;
     }
 
@@ -46,21 +41,7 @@ public class DocumentUploadController {
             for (String chunkText : chunks) {
                 if (chunkText.isBlank()) continue;
                 String hash = sha256(chunkText);
-
-                DocumentEntity entity = new DocumentEntity();
-                entity.setTitle(filename);
-                entity.setContent(chunkText);
-                entity.setSourceType("custom_upload");
-                entity.setContentHash(hash);
-
-                try {
-                    float[] embed = embeddingModel.embed(chunkText);
-                    entity.setEmbedding(embed);
-                } catch (Exception e) {
-                    entity.setEmbedding(new float[1536]);
-                }
-
-                documentRepository.save(entity);
+                documentRepository.save(filename, chunkText, "custom_upload", hash);
                 savedCount++;
             }
 
