@@ -31,7 +31,12 @@ let selectedMentionIdx = 0;
 function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') {
   if (!toastContainer) return;
   const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
+  
+  const borderClass = type === 'success' ? 'border-l-4 border-l-emerald-500 border-slate-800' :
+                     (type === 'error' ? 'border-l-4 border-l-rose-500 border-slate-800' :
+                     (type === 'warning' ? 'border-l-4 border-l-amber-500 border-slate-800' : 'border-l-4 border-l-indigo-500 border-slate-800'));
+
+  toast.className = `bg-slate-900 border text-slate-100 p-3 px-4 rounded-xl shadow-2xl backdrop-blur-xl text-xs flex items-center gap-2 animate-toast-slide ${borderClass}`;
   
   const icon = type === 'success' ? '✅' : (type === 'error' ? '⚠️' : (type === 'warning' ? '🔔' : 'ℹ️'));
   toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
@@ -40,7 +45,7 @@ function showToast(message: string, type: 'success' | 'error' | 'warning' | 'inf
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(30px)';
-    toast.style.transition = 'all 0.3s ease';
+    toast.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
     setTimeout(() => toast.remove(), 300);
   }, 4000);
 }
@@ -103,19 +108,19 @@ function renderCorpusList() {
   if (!corpusList) return;
   corpusList.innerHTML = '';
   if (activeCorpusDocs.length === 0) {
-    corpusList.innerHTML = '<div style="font-size: 0.8rem; color: #94a3b8; padding: 4px;">No documents uploaded yet</div>';
+    corpusList.innerHTML = '<div class="text-xs text-slate-500 p-1">No documents uploaded yet</div>';
     return;
   }
   activeCorpusDocs.forEach((docTitle) => {
     const item = document.createElement('div');
-    item.className = 'corpus-item';
+    item.className = 'flex items-center justify-between gap-2 p-2 px-3 rounded-xl bg-slate-800/40 border border-slate-800/60 hover:border-indigo-500/30 hover:bg-slate-800/80 transition-all text-xs text-slate-300 group';
     item.innerHTML = `
-      <div class="corpus-info">
-        <span class="file-icon">📄</span>
-        <span class="file-name" title="${docTitle}">${docTitle}</span>
+      <div class="flex items-center gap-2 overflow-hidden">
+        <span class="text-xs">📄</span>
+        <span class="truncate" title="${docTitle}">${docTitle}</span>
       </div>
-      <button class="delete-btn" data-title="${docTitle}" title="Delete Document">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+      <button class="delete-btn text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 p-1 rounded-lg transition-all" data-title="${docTitle}" title="Delete Document">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
       </button>
     `;
     item.querySelector('.delete-btn')?.addEventListener('click', (e) => {
@@ -230,7 +235,7 @@ function renderMentionDropdown(matches: string[], atIdx: number) {
 
   matches.forEach((docTitle, idx) => {
     const item = document.createElement('div');
-    item.className = `mention-item ${idx === 0 ? 'selected' : ''}`;
+    item.className = `mention-item flex items-center gap-2 p-2 px-3 rounded-xl text-xs text-slate-300 hover:bg-indigo-500/20 hover:text-white cursor-pointer transition-all ${idx === 0 ? 'bg-indigo-500/20 text-white font-semibold' : ''}`;
     item.innerHTML = `<span>📄</span> <span>${docTitle}</span>`;
     item.addEventListener('click', () => {
       const beforeAt = userInput.value.substring(0, atIdx);
@@ -242,20 +247,22 @@ function renderMentionDropdown(matches: string[], atIdx: number) {
   });
 
   mentionDropdown.classList.remove('hidden');
+  mentionDropdown.classList.add('flex');
 }
 
 function updateMentionHighlight(items: NodeListOf<Element>) {
   items.forEach((item, idx) => {
     if (idx === selectedMentionIdx) {
-      item.classList.add('selected');
+      item.classList.add('bg-indigo-500/20', 'text-white', 'font-semibold');
     } else {
-      item.classList.remove('selected');
+      item.classList.remove('bg-indigo-500/20', 'text-white', 'font-semibold');
     }
   });
 }
 
 function hideMentionDropdown() {
   mentionDropdown.classList.add('hidden');
+  mentionDropdown.classList.remove('flex');
 }
 
 // Wire Suggestion Chips
@@ -366,14 +373,14 @@ async function processFileUpload(file: File) {
 
 function appendUserMessage(text: string): HTMLDivElement {
   const msgDiv = document.createElement('div');
-  msgDiv.className = 'message user';
+  msgDiv.className = 'flex gap-4 max-w-3xl ml-auto flex-row-reverse';
 
   const avatarDiv = document.createElement('div');
-  avatarDiv.className = 'avatar';
+  avatarDiv.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-[10px] font-extrabold shrink-0 shadow-md shadow-blue-500/20';
   avatarDiv.innerText = 'YOU';
 
   const bubbleDiv = document.createElement('div');
-  bubbleDiv.className = 'bubble';
+  bubbleDiv.className = 'bg-gradient-to-tr from-indigo-950 to-slate-900 border border-indigo-500/40 text-white rounded-2xl rounded-tr-sm p-4 text-sm leading-relaxed shadow-lg shadow-black/40';
   bubbleDiv.innerText = text;
 
   msgDiv.appendChild(avatarDiv);
@@ -386,17 +393,17 @@ function appendUserMessage(text: string): HTMLDivElement {
 
 function appendAssistantMessage(text: string): { bubbleDiv: HTMLDivElement; messageContent: HTMLDivElement } {
   const msgDiv = document.createElement('div');
-  msgDiv.className = 'message assistant';
+  msgDiv.className = 'flex gap-4 max-w-3xl';
 
   const avatarDiv = document.createElement('div');
-  avatarDiv.className = 'avatar';
+  avatarDiv.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white text-[10px] font-extrabold shrink-0 shadow-md shadow-indigo-500/20';
   avatarDiv.innerText = 'AI';
 
   const messageContent = document.createElement('div');
-  messageContent.className = 'message-content';
+  messageContent.className = 'flex flex-col gap-2 max-w-[85%]';
 
   const bubbleDiv = document.createElement('div');
-  bubbleDiv.className = 'bubble';
+  bubbleDiv.className = 'bg-slate-900/80 border border-slate-800 text-slate-100 rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed shadow-lg shadow-black/40 border-l-4 border-l-indigo-500';
   bubbleDiv.innerText = text;
 
   messageContent.appendChild(bubbleDiv);
@@ -410,30 +417,34 @@ function appendAssistantMessage(text: string): { bubbleDiv: HTMLDivElement; mess
 
 function appendContextDrawer(container: HTMLDivElement, chunks: DocumentChunk[]) {
   const drawer = document.createElement('div');
-  drawer.className = 'context-drawer';
+  drawer.className = 'bg-slate-900/60 border border-indigo-500/20 rounded-xl overflow-hidden text-xs mt-1';
 
   const header = document.createElement('div');
-  header.className = 'context-header';
+  header.className = 'px-3.5 py-2 bg-indigo-500/10 text-indigo-300 font-mono text-[11px] font-medium cursor-pointer flex justify-between items-center hover:bg-indigo-500/15 transition-all';
   header.innerHTML = `<span>🔍 Inspect ${chunks.length} Retrieved Context Chunks</span> <span>▼</span>`;
 
   const body = document.createElement('div');
-  body.className = 'context-body';
-  body.style.display = 'none';
+  body.className = 'p-3 flex flex-col gap-2 border-t border-indigo-500/20 hidden';
 
   chunks.forEach((chunk) => {
     const item = document.createElement('div');
-    item.className = 'context-item';
+    item.className = 'bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-slate-300 leading-relaxed';
     item.innerHTML = `
-      <div class="context-item-title">${chunk.title || 'Document Chunk'} (Score: ${chunk.score ? chunk.score.toFixed(4) : '1.0'})</div>
+      <div class="font-semibold text-cyan-400 mb-1">${chunk.title || 'Document Chunk'} (Score: ${chunk.score ? chunk.score.toFixed(4) : '1.0'})</div>
       <div>${chunk.content}</div>
     `;
     body.appendChild(item);
   });
 
   header.addEventListener('click', () => {
-    const isOpen = body.style.display !== 'none';
-    body.style.display = isOpen ? 'none' : 'flex';
-    header.querySelector('span:last-child')!.textContent = isOpen ? '▼' : '▲';
+    const isHidden = body.classList.contains('hidden');
+    if (isHidden) {
+      body.classList.remove('hidden');
+      header.querySelector('span:last-child')!.textContent = '▲';
+    } else {
+      body.classList.add('hidden');
+      header.querySelector('span:last-child')!.textContent = '▼';
+    }
   });
 
   drawer.appendChild(header);
