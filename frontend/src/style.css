@@ -32,13 +32,13 @@ html.light {
   }
 }
 
-/* Glassmorphism & Cards */
+/* Glassmorphism & Base Cards */
 .glass-panel {
   background: var(--bg-sidebar);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-color);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
 }
 
 .glass-card {
@@ -49,14 +49,32 @@ html.light {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Primary Enterprise Button */
+.btn-primary {
+  background-color: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  font-weight: 700;
+  border: 1px solid var(--border-color);
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 /* -------------------------------------------------------------
-   LIGHT MODE TOTAL COMPONENT OVERACTION RULES
+   PRECISION LIGHT MODE OVERRIDES (VERCEL/SLATE LIGHT THEME)
    ------------------------------------------------------------- */
-html.light body {
+
+/* Body & Main Container */
+html.light body,
+html.light main {
   background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
+/* Sidebar & Top Header */
 html.light aside {
   background-color: #ffffff !important;
   border-right-color: #e2e8f0 !important;
@@ -69,20 +87,21 @@ html.light header {
   color: #0f172a !important;
 }
 
+/* Glass Cards & Panels in Light Mode */
 html.light .glass-card,
 html.light .glass-panel {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
 }
 
 html.light .glass-card:hover {
   border-color: #cbd5e1 !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
 }
 
-/* Text Overrides for Light Mode */
+/* Headings & Text Color Overrides */
 html.light h1,
 html.light h2,
 html.light h3,
@@ -106,9 +125,12 @@ html.light .text-zinc-500 {
   color: #64748b !important;
 }
 
-/* Inputs, Selects, Form Elements in Light Mode */
+/* Form Inputs, Search Bar & Select Dropdowns */
 html.light input,
-html.light select {
+html.light select,
+html.light div.bg-zinc-900\/90,
+html.light div.bg-slate-900\/60,
+html.light div.bg-zinc-900\/60 {
   background-color: #f1f5f9 !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
@@ -118,15 +140,22 @@ html.light input::placeholder {
   color: #94a3b8 !important;
 }
 
+/* Floating Chat Form */
 html.light form#chatForm {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* Navigation Tab Buttons in Light Mode */
+html.light form#chatForm input {
+  background-color: transparent !important;
+  color: #0f172a !important;
+}
+
+/* Sidebar Active & Inactive Navigation Tabs */
 html.light .tab-btn {
   color: #475569 !important;
+  border-color: transparent !important;
 }
 
 html.light .tab-btn:hover {
@@ -134,7 +163,8 @@ html.light .tab-btn:hover {
   color: #0f172a !important;
 }
 
-html.light .tab-btn.bg-zinc-800 {
+html.light .tab-btn.bg-zinc-800,
+html.light .tab-btn[data-active="true"] {
   background-color: #0f172a !important;
   color: #ffffff !important;
 }
@@ -143,14 +173,45 @@ html.light .tab-btn.bg-zinc-800 * {
   color: #ffffff !important;
 }
 
+/* Workspace Selector & Status Footer in Sidebar */
+html.light aside div.bg-zinc-900\/60,
+html.light aside div.bg-slate-900\/60 {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Corpus List Items in Sidebar */
+html.light #corpusList > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light #corpusList > div:hover {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Quick Launch Icon Containers */
+html.light .w-9.h-9.bg-zinc-800,
+html.light .w-9.h-9.bg-slate-800 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
 /* Buttons in Light Mode */
-html.light .btn-primary {
+html.light .btn-primary,
+html.light button#sendBtn {
   background-color: #0f172a !important;
   color: #ffffff !important;
   border-color: #0f172a !important;
 }
 
-html.light .btn-primary:hover {
+html.light .btn-primary:hover,
+html.light button#sendBtn:hover {
   background-color: #1e293b !important;
 }
 
@@ -166,11 +227,19 @@ html.light button#themeToggleBtn:hover {
   background-color: #e2e8f0 !important;
 }
 
+/* Toast Notifications in Light Mode */
+html.light #toastContainer > div {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+}
+
 /* Modals & Overlays in Light Mode */
 html.light #confirmModal,
 html.light #artifactDetailModal,
 html.light #dropZoneOverlay {
-  background-color: rgba(15, 23, 42, 0.4) !important;
+  background-color: rgba(15, 23, 42, 0.35) !important;
 }
 
 html.light #confirmModal .glass-panel,
@@ -178,11 +247,12 @@ html.light #artifactDetailModal .glass-panel {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #e2e8f0 !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Badges in Light Mode */
-html.light .bg-zinc-800 {
+/* Badges & Tag Pills in Light Mode */
+html.light .bg-zinc-800,
+html.light .bg-slate-800 {
   background-color: #e2e8f0 !important;
   color: #334155 !important;
 }
