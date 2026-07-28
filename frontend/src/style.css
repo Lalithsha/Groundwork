@@ -36,6 +36,43 @@
   animation: toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Diff Line Highlighting */
+.diff-line-add {
+  @apply bg-emerald-950/60 text-emerald-200 border-l-4 border-l-emerald-500 font-mono text-[11px] p-2 rounded-r-lg my-1;
+}
+
+.diff-line-remove {
+  @apply bg-rose-950/60 text-rose-200 border-l-4 border-l-rose-500 font-mono text-[11px] p-2 rounded-r-lg my-1 line-through opacity-80;
+}
+
+.diff-line-mod {
+  @apply bg-amber-950/60 text-amber-200 border-l-4 border-l-amber-500 font-mono text-[11px] p-2 rounded-r-lg my-1;
+}
+
+.diff-line-same {
+  @apply bg-slate-900/40 text-slate-300 border-l-4 border-l-slate-700 font-mono text-[11px] p-2 rounded-r-lg my-1;
+}
+
+/* Node pulse effect in D3 Knowledge Graph */
+.d3-node {
+  transition: r 0.2s ease, fill 0.2s ease, stroke 0.2s ease;
+  cursor: pointer;
+}
+
+.d3-node:hover {
+  filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.8));
+}
+
+.d3-link {
+  stroke-opacity: 0.4;
+  transition: stroke-opacity 0.2s ease, stroke-width 0.2s ease;
+}
+
+.d3-link:hover {
+  stroke-opacity: 0.9;
+  stroke-width: 2.5px;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 5px;

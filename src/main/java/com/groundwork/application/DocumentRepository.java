@@ -100,11 +100,65 @@ public class DocumentRepository {
     }
 
     public void save(String title, String content, String sourceType, String contentHash) {
+        saveWithWorkspace(title, content, sourceType, contentHash, null);
+    }
+
+    public void saveWithWorkspace(String title, String content, String sourceType, String contentHash, UUID workspaceId) {
         String sql = """
-            INSERT INTO documents (title, content, source_type, content_hash)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT (content_hash) DO UPDATE SET content = EXCLUDED.content, updated_at = now()
+            INSERT INTO documents (title, content, source_type, content_hash, workspace_id)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (content_hash) DO UPDATE SET content = EXCLUDED.content, workspace_id = COALESCE(EXCLUDED.workspace_id, documents.workspace_id), updated_at = now()
             """;
-        jdbcTemplate.update(sql, title, content, sourceType, contentHash);
+        jdbcTemplate.update(sql, title, content, sourceType, contentHash, workspaceId);
+    }
+
+    public List<DocumentChunk> findByTitle(String title) {
+        String sql = """
+            SELECT id, title, content, source_type, content_hash, 1.0 AS score
+            FROM documents
+            WHERE LOWER(title) = LOWER(?)
+            ORDER BY created_at ASC
+            """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new DocumentChunk(
+            UUID.fromString(rs.getString("id")),
+            rs.getString("title"),
+            rs.getString("content"),
+            rs.getString("source_type"),
+            rs.getString("content_hash"),
+            rs.getDouble("score")
+        ), title.trim());
+    }
+
+    public List<DocumentChunk> findByWorkspaceId(UUID workspaceId) {
+        String sql = """
+            SELECT id, title, content, source_type, content_hash, 1.0 AS score
+            FROM documents
+            WHERE workspace_id = ?
+            ORDER BY created_at DESC
+            """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new DocumentChunk(
+            UUID.fromString(rs.getString("id")),
+            rs.getString("title"),
+            rs.getString("content"),
+            rs.getString("source_type"),
+            rs.getString("content_hash"),
+            rs.getDouble("score")
+        ), workspaceId);
+    }
+
+    public List<DocumentChunk> findAll() {
+        String sql = """
+            SELECT id, title, content, source_type, content_hash, 1.0 AS score
+            FROM documents
+            ORDER BY created_at DESC
+            """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new DocumentChunk(
+            UUID.fromString(rs.getString("id")),
+            rs.getString("title"),
+            rs.getString("content"),
+            rs.getString("source_type"),
+            rs.getString("content_hash"),
+            rs.getDouble("score")
+        ));
     }
 }
