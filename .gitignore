@@ -16,6 +16,9 @@ frontend/dist/
 .env
 *.log
 
+# Local Q&A Log (Never commit or push)
+GROUNDWORK_QA_LOG.md
+
 # Python / Eval
 eval/__pycache__/
 eval/.venv/
