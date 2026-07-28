@@ -2,47 +2,79 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-main: #09090b;
+  --bg-sidebar: #121215;
+  --bg-card: rgba(24, 24, 27, 0.6);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --btn-primary-bg: #f4f4f5;
+  --btn-primary-text: #09090b;
+}
+
+html.light {
+  --bg-main: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --bg-card: #ffffff;
+  --border-color: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --btn-primary-bg: #0f172a;
+  --btn-primary-text: #ffffff;
+}
+
 @layer base {
   body {
-    @apply bg-[#09090b] text-zinc-100 font-sans h-screen overflow-hidden relative select-none antialiased;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    @apply font-sans h-screen overflow-hidden relative select-none antialiased transition-colors duration-200;
   }
 }
 
-/* Professional Enterprise Design System (Linear / Vercel Dark Mode) */
+/* Glassmorphism & Cards */
 .glass-panel {
-  background: rgba(18, 18, 21, 0.85);
+  background: var(--bg-sidebar);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 
 .glass-card {
-  background: rgba(24, 24, 27, 0.5);
+  background: var(--bg-card);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-color);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.glass-card:hover {
-  background: rgba(24, 24, 27, 0.85);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+html.light .glass-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-/* Primary Enterprise Button (Vercel Style Pure White / High Contrast) */
+html.light .glass-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Primary Enterprise Button */
 .btn-primary {
-  background: #f4f4f5;
-  color: #09090b;
+  background-color: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--border-color);
   transition: all 0.15s ease;
 }
 
 .btn-primary:hover {
-  background: #ffffff;
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15);
+  opacity: 0.9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Custom Keyframe Animations */
@@ -75,19 +107,35 @@
 
 /* Diff Line Highlighting */
 .diff-line-add {
-  @apply bg-emerald-950/70 text-emerald-200 border-l-4 border-l-emerald-500 font-mono text-[11px] p-2.5 rounded-r-xl my-1.5 shadow-sm shadow-emerald-950/40;
+  @apply bg-emerald-950/70 text-emerald-200 border-l-4 border-l-emerald-500 font-mono text-[11px] p-2.5 rounded-r-xl my-1.5 shadow-sm;
+}
+
+html.light .diff-line-add {
+  @apply bg-emerald-50 text-emerald-900 border-l-emerald-600;
 }
 
 .diff-line-remove {
-  @apply bg-rose-950/70 text-rose-200 border-l-4 border-l-rose-500 font-mono text-[11px] p-2.5 rounded-r-xl my-1.5 line-through opacity-85 shadow-sm shadow-rose-950/40;
+  @apply bg-rose-950/70 text-rose-200 border-l-4 border-l-rose-500 font-mono text-[11px] p-2.5 rounded-r-xl my-1.5 line-through opacity-85;
+}
+
+html.light .diff-line-remove {
+  @apply bg-rose-50 text-rose-900 border-l-rose-600;
 }
 
 .diff-line-mod {
-  @apply bg-amber-950/70 text-amber-200 border-l-4 border-l-amber-500 font-mono text-[11px] p-2.5 rounded-r-xl my-1.5 shadow-sm shadow-amber-950/40;
+  @apply bg-amber-950/70 text-amber-200 border-l-4 border-l-amber-500 font-mono text-[11px] p-2.5 rounded-r-xl my-1.5;
+}
+
+html.light .diff-line-mod {
+  @apply bg-amber-50 text-amber-900 border-l-amber-600;
 }
 
 .diff-line-same {
   @apply bg-zinc-900/50 text-zinc-300 border-l-4 border-l-zinc-700 font-mono text-[11px] p-2.5 rounded-r-xl my-1.5;
+}
+
+html.light .diff-line-same {
+  @apply bg-slate-100 text-slate-700 border-l-slate-400;
 }
 
 /* D3 Force Knowledge Graph */
@@ -97,7 +145,7 @@
 }
 
 .d3-node:hover {
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.4));
 }
 
 .d3-link {
@@ -119,9 +167,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(150, 150, 150, 0.2);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(150, 150, 150, 0.4);
 }

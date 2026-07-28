@@ -1512,9 +1512,48 @@ function openNodeDrawer(node: GraphNode, allLinks: GraphLink[]) {
 }
 
 // -------------------------------------------------------------
+// LIGHT / DARK MODE THEME SWITCHER ENGINE
+// -------------------------------------------------------------
+function initTheme() {
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const themeToggleIcon = document.getElementById('themeToggleIcon');
+  const themeToggleText = document.getElementById('themeToggleText');
+
+  const savedTheme = localStorage.getItem('groundwork_theme') || 
+    (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+
+  applyTheme(savedTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const isLight = document.documentElement.classList.contains('light');
+      const nextTheme = isLight ? 'dark' : 'light';
+      applyTheme(nextTheme);
+      showToast(`Switched to ${nextTheme} mode`, 'info');
+    });
+  }
+
+  function applyTheme(theme: string) {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+      if (themeToggleIcon) themeToggleIcon.innerText = '☀️';
+      if (themeToggleText) themeToggleText.innerText = 'Light';
+    } else {
+      document.documentElement.classList.remove('light');
+      document.documentElement.classList.add('dark');
+      if (themeToggleIcon) themeToggleIcon.innerText = '🌙';
+      if (themeToggleText) themeToggleText.innerText = 'Dark';
+    }
+    localStorage.setItem('groundwork_theme', theme);
+  }
+}
+
+// -------------------------------------------------------------
 // APPLICATION INITIALIZATION
 // -------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   initTabs();
   initWorkspace();
   initChat();
