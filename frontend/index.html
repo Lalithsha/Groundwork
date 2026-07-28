@@ -336,7 +336,7 @@
       </div>
 
       <!-- VIEW 5: D3 KNOWLEDGE GRAPH RENDERER -->
-      <div id="view-graph" class="tab-view flex-1 flex flex-col p-6 overflow-hidden hidden gap-4">
+      <div id="view-graph" class="tab-view flex-1 flex flex-col p-6 overflow-hidden hidden gap-4 h-full">
         <!-- Graph Control Bar -->
         <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <div class="flex items-center gap-3">
@@ -368,17 +368,17 @@
         </div>
 
         <!-- Main Graph Canvas Container -->
-        <div id="d3-graph-container" class="flex-1 bg-slate-950/80 border border-slate-800/90 rounded-2xl relative overflow-hidden flex items-center justify-center">
+        <div id="d3-graph-container" class="flex-1 min-h-[500px] h-full bg-slate-950/80 border border-slate-800/90 rounded-2xl relative overflow-hidden flex items-center justify-center">
           <svg id="knowledge-graph-svg" class="w-full h-full cursor-grab active:cursor-grabbing"></svg>
 
           <!-- Floating Legend -->
-          <div class="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-800 p-3 rounded-xl backdrop-blur-md text-[11px] flex flex-col gap-1.5 shadow-xl">
-            <span class="font-bold text-slate-300 text-[10px] uppercase tracking-wider">GRAPH LEGEND</span>
-            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span><span class="text-slate-300">Document Node</span></div>
-            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span><span class="text-slate-300">Text Chunk Node</span></div>
-            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span><span class="text-slate-300">Concept Entity</span></div>
-            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span><span class="text-slate-300">API Endpoint</span></div>
-            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span class="text-slate-300">Architecture Decision</span></div>
+          <div class="absolute bottom-6 left-6 z-10 bg-slate-900/95 border border-slate-800/90 p-3.5 rounded-2xl backdrop-blur-xl text-[11px] flex flex-col gap-2 shadow-2xl shadow-black/80">
+            <span class="font-extrabold text-slate-200 text-[10px] uppercase tracking-wider border-b border-slate-800 pb-1">GRAPH LEGEND</span>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400"></span><span class="text-slate-300 font-medium">Document Node</span></div>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400"></span><span class="text-slate-300 font-medium">Text Chunk Node</span></div>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400"></span><span class="text-slate-300 font-medium">Concept Entity</span></div>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-sm shadow-purple-400"></span><span class="text-slate-300 font-medium">API Endpoint</span></div>
+            <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400"></span><span class="text-slate-300 font-medium">Architecture Decision</span></div>
           </div>
 
           <!-- Floating Node Detail Side Drawer -->
