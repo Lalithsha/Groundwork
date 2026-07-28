@@ -12,7 +12,7 @@
 2. **Document Intelligence & Structured Artifact Extractor (`/api/artifacts`):**
    - Automated extraction of structured JSON artifacts across 7 categories: *Functional & Non-Functional Requirements*, *API Specs*, *Risk Registers*, *Architecture Decisions (ADRs)*, *Assumptions*, and *Glossary Terms*.
 3. **Multi-Document Comparison Studio (`/api/compare`):**
-   - Side-by-side spec comparison detecting 5 diff types (*Added*, *Removed*, *Modified*, *Breaking Changes*, *Ambiguous*), with automated risk scoring and AI synthesis.
+   - Side-by-side spec comparison detecting 5 diff types (*Added*, *Removed*, *Modified*, *Breaking Changes*, *Ambiguous*), with automated risk scoring and AI synthesis. *(Detailed documentation in [`docs/COMPARISON_STUDIO_GUIDE.md`](docs/COMPARISON_STUDIO_GUIDE.md)).*
 4. **AI Senior Engineer Reviewer & Gap Analysis (`/api/review`):**
    - Architectural quality audits evaluating *Security*, *Scalability*, *Consistency*, *Contradictions*, and *Missing Requirements* with severity ratings (Critical 🔴, High 🟧, Medium 🟨, Low 🟦).
 5. **Interactive D3.js Force Knowledge Graph (`/api/graph`):**

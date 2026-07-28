@@ -19,7 +19,7 @@
 
 * 🗂️ **Multi-Workspace Management (`/api/workspaces`):** Logical workspace isolation enabling teams to segment project documentation, compliance specs, and architecture decisions cleanly.
 * 📋 **Document Intelligence Artifact Extractor (`/api/artifacts`):** Automated extraction of structured JSON artifacts across 7 categories: *Functional & Non-Functional Requirements*, *API Specs*, *Risk Registers*, *Architecture Decisions (ADRs)*, *Assumptions*, and *Glossary Terms*.
-* ⚔️ **Multi-Document Comparison Studio (`/api/compare`):** Side-by-side spec comparison detecting 5 diff types (*Added*, *Removed*, *Modified*, *Breaking Changes*, *Ambiguous*), with automated risk scoring and AI synthesis.
+* ⚔️ **Multi-Document Comparison Studio (`/api/compare`):** Side-by-side spec comparison detecting 5 diff types (*Added*, *Removed*, *Modified*, *Breaking Changes*, *Ambiguous*), with automated risk scoring and AI synthesis. *(See [Comparison Studio Guide](docs/COMPARISON_STUDIO_GUIDE.md)).*
 * 🔍 **AI Senior Engineer Reviewer & Gap Analysis (`/api/review`):** Architectural quality audits evaluating *Security*, *Scalability*, *Consistency*, *Contradictions*, and *Missing Requirements* with severity ratings (Critical 🔴, High 🟧, Medium 🟨, Low 🟦).
 * 🌐 **Interactive D3.js Force Knowledge Graph (`/api/graph`):** Dynamic 2D graph visualizer rendering entities, APIs, documents, and relationships (*USES*, *CALLS*, *DEPENDS_ON*, *IMPLEMENTS*) with node category filtering and node inspector drawer.
 * 🏷️ **Scoped `@` Document Mention Tagging:** Restrict RAG retrieval to specific uploaded documents by typing `@` in the chat prompt for pinpoint precision.
