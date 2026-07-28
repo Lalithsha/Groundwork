@@ -308,7 +308,6 @@ function initWorkspace() {
         activeWorkspaceBadge.innerText = activeWorkspace.includes('sec') ? 'SEC' : (activeWorkspace.includes('fin') ? 'FIN' : 'PROD');
       }
 
-      showToast(`Switched active workspace to "${selectedOption}"`, 'info');
       fetchCorpusDocs();
       if (currentTab === 'intelligence') renderArtifactsGrid();
       if (currentTab === 'graph') renderKnowledgeGraph();
