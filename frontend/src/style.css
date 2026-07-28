@@ -64,7 +64,7 @@ html.light {
 }
 
 /* -------------------------------------------------------------
-   PRECISION LIGHT MODE OVERRIDES (VERCEL/SLATE LIGHT THEME)
+   LIGHT MODE NAVIGATION & COMPONENT OVERRIDES (VERCEL LIGHT)
    ------------------------------------------------------------- */
 
 /* Body & Main Container */
@@ -152,25 +152,43 @@ html.light form#chatForm input {
   color: #0f172a !important;
 }
 
-/* Sidebar Active & Inactive Navigation Tabs */
+/* -------------------------------------------------------------
+   SIDEBAR NAVIGATION LIGHT MODE REFINEMENTS
+   ------------------------------------------------------------- */
+
+/* Inactive Sidebar Nav Items */
 html.light .tab-btn {
   color: #475569 !important;
+  background-color: transparent !important;
   border-color: transparent !important;
 }
 
 html.light .tab-btn:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Active Sidebar Nav Item (Clean Soft Slate-100, NOT Pitch Black!) */
+html.light .tab-btn.bg-zinc-800,
+html.light .tab-btn[data-active="true"] {
   background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .tab-btn.bg-zinc-800 *,
+html.light .tab-btn[data-active="true"] * {
   color: #0f172a !important;
 }
 
-html.light .tab-btn.bg-zinc-800,
-html.light .tab-btn[data-active="true"] {
-  background-color: #0f172a !important;
-  color: #ffffff !important;
-}
-
-html.light .tab-btn.bg-zinc-800 * {
-  color: #ffffff !important;
+/* Navigation Item Badges & Pills in Light Mode */
+html.light .tab-btn span.font-mono,
+html.light aside span.font-mono {
+  background-color: #e2e8f0 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
 }
 
 /* Workspace Selector & Status Footer in Sidebar */
