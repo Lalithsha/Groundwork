@@ -263,12 +263,15 @@ function initTabs() {
 function switchTab(tabName: string) {
   currentTab = tabName;
 
+  const viewHeadingTitle = document.getElementById('viewHeadingTitle');
+  const viewHeadingDesc = document.getElementById('viewHeadingDesc');
+
   tabButtons.forEach(btn => {
     const isTarget = btn.getAttribute('data-tab') === tabName;
     if (isTarget) {
-      btn.className = 'tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-indigo-600 text-white shadow-md shadow-indigo-600/20';
+      btn.className = 'tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30 border border-indigo-500/40';
     } else {
-      btn.className = 'tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60';
+      btn.className = 'tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-100 hover:bg-slate-900/80 transition-all border border-transparent hover:border-slate-800';
     }
   });
 
@@ -281,6 +284,25 @@ function switchTab(tabName: string) {
       view.classList.remove('flex');
     }
   });
+
+  if (viewHeadingTitle && viewHeadingDesc) {
+    if (tabName === 'chat') {
+      viewHeadingTitle.innerText = 'Executive Knowledge Hub';
+      viewHeadingDesc.innerText = 'Vector RAG query engine, document intelligence, multi-doc diff studio, and knowledge graph';
+    } else if (tabName === 'intelligence') {
+      viewHeadingTitle.innerText = 'Document Intelligence Artifacts';
+      viewHeadingDesc.innerText = 'Extracted functional requirements, API contracts, system risks, and architecture decisions (ADRs)';
+    } else if (tabName === 'compare') {
+      viewHeadingTitle.innerText = 'Multi-Document Comparison Diff Studio';
+      viewHeadingDesc.innerText = 'Compare requirements, API specifications, and structural changes across documents with AI synthesis';
+    } else if (tabName === 'review') {
+      viewHeadingTitle.innerText = 'AI Senior Reviewer Findings Report';
+      viewHeadingDesc.innerText = 'Automated architectural compliance, security vulnerability, and code style quality audit';
+    } else if (tabName === 'graph') {
+      viewHeadingTitle.innerText = 'D3 Force Knowledge Graph Explorer';
+      viewHeadingDesc.innerText = 'Dynamic 2D force graph visualizing documents, text chunks, concept entities, and API relationships';
+    }
+  }
 
   // Lazy render triggers
   if (tabName === 'intelligence') {
@@ -456,6 +478,11 @@ function initChat() {
   });
 
   // Attach button & File Upload
+  const headerUploadBtn = document.getElementById('headerUploadBtn');
+  if (headerUploadBtn && fileInput) {
+    headerUploadBtn.addEventListener('click', () => fileInput.click());
+  }
+
   if (attachBtn && fileInput) {
     attachBtn.addEventListener('click', () => fileInput.click());
   }
