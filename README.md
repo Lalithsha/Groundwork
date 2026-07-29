@@ -13,6 +13,8 @@
 
 **Groundwork v2** is an enterprise-grade, distributed **AI Document Intelligence & Knowledge Platform**. Moving beyond basic PDF chat, Groundwork v2 offers **workspace isolation**, **structured document artifact extraction**, **multi-document diff & spec comparison**, **AI senior engineer architectural reviewing**, **D3 force-directed knowledge graphs**, and **hybrid retrieval with cross-encoder reranking**.
 
+> 📖 **Complete Product & Technical Handbook:** For exhaustive architectural diagrams, Flyway DDL schemas, REST API payloads, UI design system rules, and deployment guides, see [HANDBOOK.md](file:///Users/lalithsharma/My-Projects/Groundwork/HANDBOOK.md).
+
 ---
 
 ## 🚀 What's New in Groundwork v2

@@ -4,6 +4,8 @@
 
 ## 📌 Executive Overview & Core Product Offering
 
+> 📖 **Master Technical Handbook:** For complete database DDL schemas, module specifications, REST API contracts, UI color tokens, and Docker setup, see [HANDBOOK.md](file:///Users/lalithsharma/My-Projects/Groundwork/HANDBOOK.md).
+
 **Groundwork v2** is a production-grade, distributed AI Document Intelligence & Technical Knowledge Platform built with **Spring Boot 3.2**, **Spring AI**, **PostgreSQL 16 (`pgvector` + native Full-Text Search)**, **Redis**, **TailwindCSS v3**, and an interactive **D3.js Force-Directed Graph** engine.
 
 ### What Groundwork v2 Offers:
