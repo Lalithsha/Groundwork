@@ -1,183 +1,143 @@
-export interface WorkspaceDto {
-  id: string;
-  name: string;
-  description?: string;
-}
+export interface WorkspaceDto { id: string; name: string; description?: string }
+export interface AuthTokensDto { accessToken: string; refreshToken: string; email: string; role: string }
+export interface UploadResponseDto { message: string; filename: string; documentId: string; jobId?: string; status: string; duplicate: boolean }
+export interface JobDto { id: string; status: string; progressCurrent: number; progressTotal: number; errorMessage?: string }
 
-export interface CitationDto {
-  citationId: string;
-  chunkId: string;
-  documentId?: string;
-  documentTitle: string;
-  sectionTitle?: string;
-  pageNumber?: number;
-  score: number;
+export interface ChangeSetDto {
+  id: string; workspaceId: string; connectionId?: string; repositoryFullName: string;
+  pullRequestNumber?: number; title: string; description?: string; authorLogin?: string;
+  baseSha: string; headSha: string; sourceBranch?: string; targetBranch?: string;
+  state: string; canonicalUrl?: string; currentAnalysisStatus: string;
+  metadata: Record<string, unknown>; openedAt?: string; mergedAt?: string; updatedAt: string;
 }
-
+export interface FindingDto {
+  id: string; findingKey: string; analyzerVersion: string; category: string; severity: string; statement: string;
+  deterministic: boolean; evidenceStatus: string; confidence?: string;
+  citations: Array<Record<string, unknown>>; details: Record<string, unknown>;
+  reviewStatus: string; reviewReason?: string; reviewedAt?: string;
+}
+export interface PolicyEvaluationDto {
+  id: string; policyVersionId: string; policyName: string; policyVersion: number;
+  result: string; evidence: Array<Record<string, unknown>>; message: string; evaluatedAt: string;
+}
+export interface ChangeDetailDto {
+  change: ChangeSetDto; findings: FindingDto[]; policies: PolicyEvaluationDto[];
+  feedback: Array<Record<string, unknown>>;
+}
+export interface EvidenceArtifactDto {
+  id: string; workspaceId: string; connectionId?: string; sourceProvider: string; externalId: string;
+  artifactType: string; title: string; canonicalUrl?: string; lifecycleState: string;
+  sourceAcl: Record<string, unknown>; updatedAt: string;
+}
+export interface EvidenceSearchHitDto {
+  artifactId: string; versionId: string; artifactType: string; title: string; canonicalUrl?: string;
+  sourceVersion: string; content: string; metadata: Record<string, unknown>; score: number; retrievalStage: string;
+}
+export interface EvidenceDetailDto {
+  artifact: EvidenceArtifactDto;
+  versions: Array<{ id: string; sourceVersion: string; content: string; contentHash: string; metadata: Record<string, unknown>; validFrom: string; validTo?: string }>;
+  relationships: Array<{ id: string; sourceArtifactId: string; targetArtifactId: string; relationshipType: string; provenanceType: string }>;
+}
+export interface ConnectionDto {
+  id: string; workspaceId: string; provider: string; externalAccountId: string; displayName: string;
+  status: string; scopes: string[]; metadata: Record<string, unknown>; lastSyncedAt?: string; lastError?: string;
+}
+export interface EvidencePolicyDto {
+  id: string; name: string; description?: string; activeVersion?: number; enabled: boolean;
+  policyVersionId?: string; ruleType?: string; severity?: string; definition: Record<string, unknown>;
+}
+export interface ReleaseRecordDto {
+  id: string; name: string; repositoryFullName: string; baseRef?: string; headRef: string;
+  status: string; manifest: Record<string, unknown>; manifestHash: string; frozenAt: string;
+}
 export interface ChatResponseDto {
-  answer: string;
-  retrievedContexts: Array<{
-    id: string;
-    documentId?: string;
-    title: string;
-    content: string;
-    sourceType: string;
-    score: number;
-    sectionTitle?: string;
-    pageNumber?: number;
-  }>;
-  citations: CitationDto[];
-  evidenceStatus: 'GROUNDED' | 'INSUFFICIENT' | 'UNKNOWN';
-  requestId?: string;
-}
-
-export interface UploadResponseDto {
-  message: string;
-  filename: string;
-  documentId: string;
-  jobId?: string;
-  status: string;
-  duplicate: boolean;
-}
-
-export interface JobDto {
-  id: string;
-  status: string;
-  progressCurrent: number;
-  progressTotal: number;
-  errorMessage?: string;
-}
-
-export interface KnowledgeArtifactDto {
-  id: string;
-  workspaceId?: string;
-  title: string;
-  artifactType: string;
-  content: string;
-  structuredData: string;
-}
-
-export interface GraphDto {
-  entities: Array<{ id: string; name: string; entityType: string; description?: string }>;
-  relationships: Array<{
-    id: string;
-    sourceEntityId: string;
-    targetEntityId: string;
-    relationshipType: string;
-    description?: string;
-  }>;
-}
-
-export interface AuthTokensDto {
-  accessToken: string;
-  refreshToken: string;
-  email: string;
-  role: string;
+  answer: string; evidenceStatus: string;
+  citations: Array<{ citationId: string; documentTitle: string; sectionTitle?: string; pageNumber?: number; score: number }>;
 }
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, message: string) {
-    super(message);
-  }
+  constructor(public readonly status: number, message: string) { super(message) }
 }
 
 class GroundworkApi {
   private readonly baseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
-  async register(email: string, password: string): Promise<AuthTokensDto> {
-    return this.request('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
-  }
-
-  async login(email: string, password: string): Promise<AuthTokensDto> {
-    return this.request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-  }
-
-  setSession(tokens: AuthTokensDto): void {
+  register(email: string, password: string) { return this.request<AuthTokensDto>('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) }) }
+  login(email: string, password: string) { return this.request<AuthTokensDto>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }) }
+  setSession(tokens: AuthTokensDto) {
     localStorage.setItem('groundwork_access_token', tokens.accessToken);
     localStorage.setItem('groundwork_refresh_token', tokens.refreshToken);
     localStorage.setItem('groundwork_user_email', tokens.email);
   }
-
-  clearSession(): void {
-    localStorage.removeItem('groundwork_access_token');
-    localStorage.removeItem('groundwork_refresh_token');
-    localStorage.removeItem('groundwork_user_email');
+  clearSession() {
+    ['groundwork_access_token', 'groundwork_refresh_token', 'groundwork_user_email'].forEach(key => localStorage.removeItem(key));
   }
+  isAuthenticated() { return Boolean(localStorage.getItem('groundwork_access_token')) }
+  currentEmail() { return localStorage.getItem('groundwork_user_email') || '' }
 
-  isAuthenticated(): boolean {
-    return Boolean(localStorage.getItem('groundwork_access_token'));
-  }
+  workspaces() { return this.request<WorkspaceDto[]>('/api/workspaces') }
+  createWorkspace(name: string, description: string) { return this.request<WorkspaceDto>('/api/workspaces', { method: 'POST', body: JSON.stringify({ name, description }) }) }
+  analytics(workspaceId: string) { return this.request<Record<string, unknown>>(`/api/workspaces/${workspaceId}/analytics/summary`) }
 
-  async workspaces(): Promise<WorkspaceDto[]> {
-    return this.request('/api/workspaces');
-  }
-
-  async createWorkspace(name: string, description: string): Promise<WorkspaceDto> {
-    return this.request('/api/workspaces', { method: 'POST', body: JSON.stringify({ name, description }) });
-  }
-
-  async documents(workspaceId: string): Promise<string[]> {
-    return this.request(`/api/documents${this.query({ workspaceId })}`);
-  }
-
-  async deleteDocument(title: string, workspaceId: string): Promise<void> {
-    await this.request(`/api/documents${this.query({ title, workspaceId })}`, { method: 'DELETE' });
-  }
-
-  async upload(file: File, workspaceId: string): Promise<UploadResponseDto> {
-    const body = new FormData();
-    body.append('file', file);
-    return this.request(`/api/documents/upload${this.query({ workspaceId })}`, { method: 'POST', body });
-  }
-
-  async ingestionJob(jobId: string): Promise<JobDto> {
-    return this.request(`/api/documents/jobs/${encodeURIComponent(jobId)}`);
-  }
-
-  async chat(question: string, retrievalMode: string, workspaceId: string, documentFilter?: string): Promise<ChatResponseDto> {
-    return this.request('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({ question, retrievalMode, workspaceId, documentFilter })
+  changes(workspaceId: string) { return this.request<ChangeSetDto[]>(`/api/workspaces/${workspaceId}/changes`) }
+  change(changeId: string) { return this.request<ChangeDetailDto>(`/api/changes/${changeId}`) }
+  reanalyze(changeId: string) { return this.request<Record<string, unknown>>(`/api/changes/${changeId}/reanalyze`, { method: 'POST' }) }
+  evaluatePolicies(changeId: string) { return this.request<PolicyEvaluationDto[]>(`/api/changes/${changeId}/evaluate-policies`, { method: 'POST' }) }
+  dryRunPolicies(changeId: string) { return this.request<Array<Record<string, unknown>>>(`/api/changes/${changeId}/policies/dry-run`, { method: 'POST' }) }
+  reviewFinding(changeId: string, findingId: string, status: string, reason: string, reasonCode: string) {
+    return this.request<Record<string, unknown>>(`/api/changes/${changeId}/findings/${findingId}`, {
+      method: 'PATCH', body: JSON.stringify({ status, reason, reasonCode })
     });
   }
 
-  async reindex(workspaceId: string): Promise<JobDto> {
-    return this.request(`/api/admin/reindex${this.query({ workspaceId })}`, { method: 'POST' });
-  }
+  evidence(workspaceId: string, type = '') { return this.request<EvidenceArtifactDto[]>(`/api/workspaces/${workspaceId}/evidence${this.query({ type })}`) }
+  searchEvidence(workspaceId: string, query: string) { return this.request<EvidenceSearchHitDto[]>(`/api/workspaces/${workspaceId}/evidence/search${this.query({ query, limit: 20, expandGraph: true })}`) }
+  evidenceDetail(workspaceId: string, artifactId: string) { return this.request<EvidenceDetailDto>(`/api/workspaces/${workspaceId}/evidence/${artifactId}`) }
+  importDocuments(workspaceId: string) { return this.request<Record<string, unknown>>(`/api/workspaces/${workspaceId}/evidence/import-documents`, { method: 'POST' }) }
 
-  async compare(docTitleA: string, docTitleB: string, workspaceId: string): Promise<unknown> {
-    return this.request('/api/compare', {
-      method: 'POST', body: JSON.stringify({ workspaceId, docTitleA, docTitleB })
+  connections(workspaceId: string) { return this.request<ConnectionDto[]>(`/api/workspaces/${workspaceId}/connections`) }
+  createConnection(workspaceId: string, input: Record<string, unknown>) { return this.request<ConnectionDto>(`/api/workspaces/${workspaceId}/connections`, { method: 'POST', body: JSON.stringify(input) }) }
+  revokeConnection(connectionId: string) { return this.request<void>(`/api/connections/${connectionId}`, { method: 'DELETE' }) }
+  syncConnection(workspaceId: string, connectionId: string) { return this.request<Record<string, unknown>>(`/api/workspaces/${workspaceId}/connections/${connectionId}/sync`, { method: 'POST' }) }
+  syncRuns(workspaceId: string, connectionId: string) { return this.request<Array<Record<string, unknown>>>(`/api/workspaces/${workspaceId}/connections/${connectionId}/sync-runs`) }
+  atlassianAuthorize(workspaceId: string, provider: string, selectedResources: Record<string, unknown>) {
+    return this.request<{ authorizationUrl: string; expiresAt: string }>(`/api/workspaces/${workspaceId}/connections/atlassian/authorize`, {
+      method: 'POST', body: JSON.stringify({ provider, selectedResources })
+    });
+  }
+  seedDemo(workspaceId: string) { return this.request<Record<string, unknown>>(`/api/workspaces/${workspaceId}/demo/evidence`, { method: 'POST' }) }
+
+  policies(workspaceId: string) { return this.request<EvidencePolicyDto[]>(`/api/workspaces/${workspaceId}/policies`) }
+  activatePolicy(workspaceId: string, policyId: string, version: number, enabled: boolean) {
+    return this.request<Record<string, unknown>>(`/api/workspaces/${workspaceId}/policies/${policyId}/activation`, {
+      method: 'PATCH', body: JSON.stringify({ version, enabled })
     });
   }
 
-  async review(documentTitle: string, workspaceId: string): Promise<unknown> {
-    return this.request('/api/review', {
-      method: 'POST', body: JSON.stringify({ workspaceId, documentTitle })
-    });
+  releases(workspaceId: string) { return this.request<ReleaseRecordDto[]>(`/api/workspaces/${workspaceId}/releases`) }
+  release(workspaceId: string, releaseId: string) { return this.request<Record<string, unknown>>(`/api/workspaces/${workspaceId}/releases/${releaseId}`) }
+  createRelease(workspaceId: string, input: Record<string, unknown>) { return this.request<ReleaseRecordDto>(`/api/workspaces/${workspaceId}/releases`, { method: 'POST', body: JSON.stringify(input) }) }
+  downloadRelease(workspaceId: string, releaseId: string, format: 'json' | 'html' | 'pdf') {
+    const suffix = format === 'json' ? 'export' : `export.${format}`;
+    return this.download(`/api/workspaces/${workspaceId}/releases/${releaseId}/${suffix}`);
   }
 
-  async artifacts(workspaceId: string): Promise<KnowledgeArtifactDto[]> {
-    return this.request(`/api/artifacts${this.query({ workspaceId })}`);
+  documents(workspaceId: string) { return this.request<string[]>(`/api/documents${this.query({ workspaceId })}`) }
+  upload(file: File, workspaceId: string) {
+    const body = new FormData(); body.append('file', file);
+    return this.request<UploadResponseDto>(`/api/documents/upload${this.query({ workspaceId })}`, { method: 'POST', body });
   }
-
-  async extractArtifact(documentTitle: string, artifactType: string, workspaceId: string): Promise<KnowledgeArtifactDto> {
-    return this.request('/api/artifacts/extract', {
-      method: 'POST', body: JSON.stringify({ workspaceId, documentTitle, artifactType })
-    });
-  }
-
-  async graph(workspaceId: string): Promise<GraphDto> {
-    return this.request(`/api/graph${this.query({ workspaceId })}`);
+  ingestionJob(jobId: string) { return this.request<JobDto>(`/api/documents/jobs/${jobId}`) }
+  chat(question: string, workspaceId: string, documentFilter?: string) {
+    return this.request<ChatResponseDto>('/api/chat', { method: 'POST', body: JSON.stringify({ question, retrievalMode: 'HYBRID', workspaceId, documentFilter }) });
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const token = localStorage.getItem('groundwork_access_token');
     const headers = new Headers(init.headers);
     if (!(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+    const token = localStorage.getItem('groundwork_access_token');
     if (token) headers.set('Authorization', `Bearer ${token}`);
     headers.set('X-Request-ID', crypto.randomUUID());
-
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}${path}`, { ...init, headers });
@@ -188,25 +148,24 @@ class GroundworkApi {
           response = await fetch(`${this.baseUrl}${path}`, { ...init, headers });
         }
       }
-    } catch {
-      throw new ApiError(0, 'Groundwork API is unavailable');
-    }
-    if (!response.ok) {
-      let message = `Request failed with HTTP ${response.status}`;
-      try {
-        const body = await response.json();
-        if (typeof body.message === 'string') message = body.message;
-        else if (typeof body.error === 'string') message = body.error;
-      } catch {
-        // Preserve the status-based message for non-JSON errors.
-      }
-      if (response.status === 401 && !path.startsWith('/api/auth/')) {
-        window.dispatchEvent(new CustomEvent('groundwork:unauthorized', { detail: message }));
-      }
-      throw new ApiError(response.status, message);
-    }
+    } catch { throw new ApiError(0, 'Groundwork API is unavailable') }
+    if (!response.ok) throw new ApiError(response.status, await this.errorMessage(response));
     if (response.status === 204) return undefined as T;
     return response.json() as Promise<T>;
+  }
+
+  private async download(path: string) {
+    const headers = new Headers({ 'X-Request-ID': crypto.randomUUID() });
+    const token = localStorage.getItem('groundwork_access_token');
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    const response = await fetch(`${this.baseUrl}${path}`, { headers });
+    if (!response.ok) throw new ApiError(response.status, await this.errorMessage(response));
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const filename = disposition.match(/filename="([^"]+)"/)?.[1] || 'groundwork-evidence';
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a'); link.href = url; link.download = filename; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   private async refreshSession(): Promise<AuthTokensDto | null> {
@@ -214,27 +173,22 @@ class GroundworkApi {
     if (!refreshToken) return null;
     try {
       const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Request-ID': crypto.randomUUID() },
-        body: JSON.stringify({ refreshToken })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken })
       });
-      if (!response.ok) {
-        this.clearSession();
-        return null;
-      }
-      const tokens = await response.json() as AuthTokensDto;
-      this.setSession(tokens);
-      return tokens;
-    } catch {
-      return null;
-    }
+      if (!response.ok) { this.clearSession(); return null }
+      const tokens = await response.json() as AuthTokensDto; this.setSession(tokens); return tokens;
+    } catch { return null }
   }
-
-  private query(values: Record<string, string>): string {
+  private async errorMessage(response: Response) {
+    try {
+      const body = await response.json() as { message?: string; error?: string };
+      return body.message || body.error || `Request failed with HTTP ${response.status}`;
+    } catch { return `Request failed with HTTP ${response.status}` }
+  }
+  private query(values: Record<string, string | number | boolean>) {
     const params = new URLSearchParams();
-    Object.entries(values).forEach(([key, value]) => { if (value) params.set(key, value); });
-    const encoded = params.toString();
-    return encoded ? `?${encoded}` : '';
+    Object.entries(values).forEach(([key, value]) => { if (value !== '') params.set(key, String(value)) });
+    return params.size ? `?${params}` : '';
   }
 }
 

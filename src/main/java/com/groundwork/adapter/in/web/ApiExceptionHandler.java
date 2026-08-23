@@ -40,6 +40,18 @@ public class ApiExceptionHandler {
         return response(status, exception.getReason() == null ? status.getReasonPhrase() : exception.getReason(), List.of(), request);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ApiError> illegalArgument(IllegalArgumentException exception, HttpServletRequest request) {
+        return response(HttpStatus.BAD_REQUEST, exception.getMessage() == null ? "Request is invalid" : exception.getMessage(),
+            List.of(), request);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    ResponseEntity<ApiError> illegalState(IllegalStateException exception, HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, exception.getMessage() == null ? "Operation cannot be completed" : exception.getMessage(),
+            List.of(), request);
+    }
+
     private ResponseEntity<ApiError> response(HttpStatus status, String message, List<String> details,
             HttpServletRequest request) {
         return ResponseEntity.status(status).body(new ApiError(

@@ -18,7 +18,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
-            .addPathPatterns("/api/chat/**", "/api/auth/login", "/api/auth/register", "/api/documents/upload");
+            .addPathPatterns("/api/chat/**", "/api/auth/login", "/api/auth/register", "/api/documents/upload",
+                "/api/integrations/github/webhook");
         registry.addInterceptor(auditInterceptor).addPathPatterns("/api/**");
     }
 }

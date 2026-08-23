@@ -1,0 +1,34 @@
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useParams } from 'react-router-dom';
+import { api, type FindingDto } from '../api';
+import { ErrorState, LoadingState, PageHeader } from '../components/PageState';
+import { StatusPill } from '../components/StatusPill';
+
+export function ChangeDetailPage() {
+  const { changeId = '' } = useParams(); const client = useQueryClient(); const [notice, setNotice] = useState('');
+  const query = useQuery({ queryKey: ['change', changeId], queryFn: () => api.change(changeId), enabled: !!changeId, refetchInterval: data => data.state.data?.change.currentAnalysisStatus === 'RUNNING' ? 1500 : false });
+  const action = useMutation<unknown, Error, 'reanalyze' | 'evaluate' | 'dry-run'>({ mutationFn: (kind) => kind === 'reanalyze' ? api.reanalyze(changeId) : kind === 'evaluate' ? api.evaluatePolicies(changeId) : api.dryRunPolicies(changeId), onSuccess: async (_, kind) => { setNotice(kind === 'dry-run' ? 'Dry run complete. No policy state was changed.' : 'Workflow updated.'); await client.invalidateQueries({ queryKey: ['change', changeId] }) } });
+  if (query.isLoading) return <LoadingState label="Reconstructing the change evidence…" />;
+  if (query.error || !query.data) return <ErrorState error={query.error || new Error('Change not found')} />;
+  const { change, findings, policies } = query.data;
+  const files = arrayOfObjects(change.metadata.files); const failures = policies.filter(item => item.result === 'FAIL' || item.result === 'UNKNOWN').length;
+  return <><Link className="back-link" to="/changes">← Change queue</Link><PageHeader eyebrow={`${change.repositoryFullName} / PR #${change.pullRequestNumber}`} title={change.title} description={`${change.sourceBranch} → ${change.targetBranch} · ${change.headSha.slice(0, 10)}`} actions={<><button className="secondary" onClick={() => action.mutate('dry-run')}>Dry-run policies</button><button className="secondary" onClick={() => action.mutate('evaluate')}>Evaluate</button><button className="primary" onClick={() => action.mutate('reanalyze')}>Reanalyze</button></>} />
+    {(notice || action.error) && <div className={action.error ? 'inline-error' : 'inline-notice'} role="status">{action.error?.message || notice}</div>}
+    <section className="verdict-strip"><div><span>Analysis</span><StatusPill value={change.currentAnalysisStatus} /></div><div><span>Policy blockers</span><strong className={failures ? 'danger-text' : 'success-text'}>{failures}</strong></div><div><span>Deterministic findings</span><strong>{findings.filter(item => item.deterministic).length}</strong></div><div><span>Changed files</span><strong>{files.length}</strong></div>{change.canonicalUrl && <a href={change.canonicalUrl} target="_blank" rel="noreferrer">Open pull request ↗</a>}</section>
+    <section className="detail-grid"><div className="detail-main">
+      <article className="panel"><div className="section-heading"><div><p className="eyebrow">EVIDENCE MATRIX</p><h2>What is present, missing, or unknown</h2></div><span className="muted">Analyzer {findings[0]?.analyzerVersion || 'pending'}</span></div><div className="finding-stack">{findings.map(finding => <FindingCard key={finding.id} finding={finding} changeId={changeId} onSaved={() => client.invalidateQueries({ queryKey: ['change', changeId] })} />)}</div></article>
+      <article className="panel"><p className="eyebrow">CHANGED SCOPE</p><h2>Files entering the release</h2><div className="file-list">{files.map((file, index) => <div key={`${String(file.path)}-${index}`}><span className="file-status">{String(file.status || 'modified').slice(0, 1).toUpperCase()}</span><code>{String(file.path)}</code><span className="diff">+{String(file.additions || 0)} −{String(file.deletions || 0)}</span></div>)}</div></article>
+    </div><aside className="detail-side"><article className="panel sticky"><p className="eyebrow">POLICY DECISIONS</p><h2>Merge readiness</h2>{policies.length ? <div className="policy-stack">{policies.map(policy => <div key={policy.id}><div><b>{policy.policyName}</b><small>Version {policy.policyVersion}</small></div><StatusPill value={policy.result} /><p>{policy.message}</p></div>)}</div> : <p className="muted">Run policy evaluation after analysis completes.</p>}<hr /><p className="eyebrow">TIMELINE</p><ol className="timeline"><li className="done"><b>Webhook accepted</b><span>Delivery persisted idempotently</span></li><li className="done"><b>Evidence normalized</b><span>Current source versions linked</span></li><li className={change.currentAnalysisStatus === 'COMPLETED' ? 'done' : ''}><b>Change analyzed</b><span>Deterministic + grounded boundary</span></li><li className={policies.length ? 'done' : ''}><b>Policies evaluated</b><span>Versioned decisions and exceptions</span></li></ol></article></aside></section></>;
+}
+
+function FindingCard({ finding, changeId, onSaved }: { finding: FindingDto; changeId: string; onSaved: () => void }) {
+  const [reasonCode, setReasonCode] = useState('ACCURATE'); const [reason, setReason] = useState('');
+  const review = useMutation({ mutationFn: (status: string) => api.reviewFinding(changeId, finding.id, status, reason, reasonCode), onSuccess: onSaved });
+  const state = String(finding.details.state || (finding.details.missing ? 'MISSING' : 'PRESENT'));
+  return <article className={`finding-card severity-${finding.severity.toLowerCase()}`}><div className="finding-head"><div><span className="finding-type">{finding.deterministic ? 'RULE' : 'AI'} · {finding.category.replaceAll('_', ' ')}</span><h3>{finding.statement}</h3></div><StatusPill value={state} /></div>{finding.citations.length > 0 && <p className="citation-line">Citations: {finding.citations.map(item => String(item.title || item.artifactId || 'evidence')).join(', ')}</p>}<details><summary>Evidence and feedback</summary><pre>{JSON.stringify(finding.details, null, 2)}</pre><div className="feedback-form"><label>Reason<select value={reasonCode} onChange={event => setReasonCode(event.target.value)}><option>ACCURATE</option><option>FALSE_POSITIVE</option><option>STALE_EVIDENCE</option><option>NOT_ACTIONABLE</option><option>OTHER</option></select></label><label>Comment<input value={reason} onChange={event => setReason(event.target.value)} placeholder="Optional context for the team" /></label><div><button className="small secondary" onClick={() => review.mutate('DISMISSED')}>Dismiss</button><button className="small primary" onClick={() => review.mutate('CONFIRMED')}>Confirm</button></div>{review.error && <span className="danger-text" role="alert">{review.error.message}</span>}</div></details></article>;
+}
+
+function arrayOfObjects(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value) ? value.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>> : [];
+}

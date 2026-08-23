@@ -1,0 +1,31 @@
+name: groundwork-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports: ["127.0.0.1:5433:5432"]
+    environment:
+      POSTGRES_DB: groundwork
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d groundwork"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes: [groundwork_dev_pg:/var/lib/postgresql/data]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6380:6379"]
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes: [groundwork_dev_redis:/data]
+
+volumes:
+  groundwork_dev_pg:
+  groundwork_dev_redis:

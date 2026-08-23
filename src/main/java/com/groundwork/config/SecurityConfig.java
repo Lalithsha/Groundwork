@@ -35,7 +35,9 @@ public class SecurityConfig {
                     response.getWriter().write("{\"error\":\"Authentication is required\"}");
                 }))
             .authorizeHttpRequests(auth -> {
-                auth.requestMatchers("/api/auth/**", "/actuator/health", "/actuator/info").permitAll();
+                auth.requestMatchers("/api/auth/**", "/api/integrations/github/webhook",
+                    "/api/integrations/atlassian/oauth/callback",
+                    "/actuator/health", "/actuator/info").permitAll();
                 auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                 if (securityEnabled) auth.anyRequest().authenticated();
                 else auth.anyRequest().permitAll();

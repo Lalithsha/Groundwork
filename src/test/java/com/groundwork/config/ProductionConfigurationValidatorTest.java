@@ -26,6 +26,8 @@ class ProductionConfigurationValidatorTest {
 
     private ProductionConfigurationValidator validator(boolean security, String secret, String origins,
             String provider, String embeddingKey, String chatKey, boolean billing) {
-        return new ProductionConfigurationValidator(security, secret, origins, provider, embeddingKey, chatKey, billing);
+        return new ProductionConfigurationValidator(security, secret, origins, provider, embeddingKey, chatKey, billing,
+            "a-unique-connector-key-longer-than-forty-eight-characters-123456", "a-github-webhook-secret-longer-than-32-chars",
+            false, "", "", false, "", "");
     }
 }

@@ -1,28 +1,87 @@
-# Architecture
+# Groundwork architecture
 
-## Boundaries
+## Product boundary
 
-- `adapter/in/web`: HTTP translation, validation, and status codes.
-- `application`: use cases, retrieval policy, chunking, job orchestration, and tenant authorization.
-- `application/port/out`: provider contracts for chat and embeddings.
-- `adapter/out/ai`: deterministic and OpenAI-compatible provider adapters.
-- `domain/model`: immutable transport/domain records.
-- Flyway migrations: persistence contract and additive upgrades.
+Groundwork turns engineering-system facts into evidence-backed change and release records. The system owns normalization, evidence versioning, deterministic checks, grounded suggestions, policy results, feedback, and release snapshots. GitHub, Jira, Confluence, model providers, and notification surfaces remain external systems behind ports.
 
-## Retrieval path
+## Runtime view
 
-The query is embedded once. PostgreSQL independently returns vector and full-text candidates scoped by workspace and optional mentioned document. Reciprocal-rank fusion combines positions using `1 / (60 + rank)`. An optional reranker may reorder the fused candidate list. The answer prompt assigns citation IDs and requires an insufficient-evidence response when sources do not support the answer.
+```mermaid
+flowchart TB
+    Browser[React browser app] --> API[Spring Security + web adapters]
+    GitHub[GitHub App] --> Webhook[Signature/size/event validation]
+    Jira[Jira Cloud] --> Connectors[Connector adapters]
+    Confluence[Confluence Cloud] --> Connectors
+    Docs[Document uploads] --> Connectors
+    Webhook --> Inbox[(Webhook deliveries)]
+    API --> App[Application services]
+    Connectors --> App
+    Inbox --> Workers[Lease-based workers]
+    Workers --> App
+    App --> PG[(PostgreSQL + pgvector)]
+    App --> Redis[(Redis cache/rate limits)]
+    App --> Providers[Chat/embedding providers]
+    App --> GitHub
+    API --> Metrics[Prometheus + OTLP]
+```
 
-## Job lifecycle
+## Code boundaries
 
-Ingestion uses `QUEUED -> RUNNING -> COMPLETED`, with `RETRYING`, `FAILED`, and `CANCELLED` terminal/side paths. Reindex uses equivalent lowercase states for compatibility with the original schema. Claims use row locks with skip-locked semantics. A worker lease timestamp allows another poller to recover abandoned work after the configured threshold.
+- `evidence/domain`: immutable change, evidence, connector, policy, finding, and release records.
+- `evidence/application`: use cases, deterministic analysis, orchestration, repositories, indexing, policy and release logic.
+- `evidence/application/port/out`: source-control, knowledge-source, and OAuth contracts.
+- `evidence/adapter/in/web`: authenticated HTTP translation and validation.
+- `evidence/adapter/out`: GitHub and Atlassian implementations.
+- `application` and legacy adapters: durable document ingestion, hybrid retrieval, and grounded document workflows retained as an evidence source.
+- Flyway: additive data contracts. ArchUnit prevents domain-to-framework and application-to-concrete-adapter coupling.
 
-Chunk replacement occurs only after every embedding batch succeeds, so a failed reindex does not partially replace the searchable document. The retrieval cache is cleared after a successful replacement.
+## Temporal evidence model
 
-## Decisions
+An `evidence_artifact` is a stable identity: for example Jira issue `PROJ-42`, GitHub PR `acme/api#42`, or ADR-019. Every changed content digest creates an immutable `evidence_artifact_version`. Relationships connect artifact identities with typed edges such as `IMPLEMENTS`, `REFERENCES`, `GOVERNED_BY`, and `AFFECTS`.
 
-1. PostgreSQL and pgvector remain one transactional source of truth to keep workspace joins, provenance, jobs, and chunks consistent.
-2. Provider-neutral ports replace direct framework coupling and allow deterministic offline tests.
-3. Raw extracted text is retained for reindexing; this trades storage/privacy obligations for reproducibility.
-4. Billing is disabled instead of simulating orders or accepting unsigned webhooks.
-5. Docker Compose is the default single-server topology. Horizontal deployment requires shared PostgreSQL/Redis, secret management, TLS ingress, and tested worker capacity.
+Connector sync runs mark artifacts seen in a particular complete scan. Only a failure-free reconciliation may mark unseen artifacts inaccessible; partial syncs never erase evidence. Revocation removes credentials and marks connector-owned artifacts inaccessible without deleting their audit history.
+
+## GitHub event sequence
+
+```mermaid
+sequenceDiagram
+    participant G as GitHub
+    participant W as Webhook adapter
+    participant DB as PostgreSQL
+    participant N as Normalizer worker
+    participant A as Analysis worker
+    participant C as GitHub Checks
+    G->>W: pull_request/check/review event
+    W->>W: verify HMAC, event, delivery, size
+    W->>DB: insert delivery + outbox atomically
+    W-->>G: 202 Accepted
+    N->>DB: claim event with SKIP LOCKED
+    N->>DB: upsert PR snapshot + evidence versions
+    N->>DB: queue analysis for head SHA
+    A->>DB: compute deterministic findings
+    A->>DB: retrieve cited cross-source evidence
+    A->>DB: validate/store grounded suggestions + policies
+    A->>C: publish summary when GitHub App is configured
+```
+
+Delivery IDs are unique. Payload digests detect conflicting replay. Workers have bounded attempts and stale-lease recovery. Reanalysis is keyed to the current head SHA and analyzer version.
+
+## Deterministic/AI boundary
+
+Deterministic analyzers produce high-confidence facts for paths, checks, tests, CODEOWNERS, migration rollback evidence, OpenAPI removals, and changelog requirements. Every result carries present/missing/unknown state.
+
+AI receives only retrieved evidence with citation IDs. Its structured response is rejected or downgraded if citations do not exist, claims are unsupported, or the provider fails. AI output is always a suggestion and cannot change deterministic policy truth. This decision is formalized in ADR 0003.
+
+## Persistence and consistency
+
+PostgreSQL is authoritative for tenants, credentials (ciphertext only), sync runs, inbox/outbox, artifacts/versions/edges, change sets, jobs, findings, policy evaluations, feedback, exceptions, approvals, releases, audit logs, document chunks, and vector indexes. Mutations that require asynchronous work write their event in the same transaction.
+
+Redis is disposable: it stores cache and distributed rate-limit state, not authoritative product records. Provider API calls are outside database transactions; durable run/job state records their outcome.
+
+## Release integrity
+
+Creating a release record snapshots selected changes, policy results, approvals, and evidence-item digests. Verification recalculates digests and reports post-freeze changes. JSON is the canonical export; HTML and PDF are presentation formats generated from the same record.
+
+## Scale posture
+
+The initial topology is a modular monolith plus worker threads, PostgreSQL, and Redis. Horizontal API/worker replicas are safe because claims use row locks and unique idempotency constraints. Kafka, a separate graph database, Kubernetes, and microservices require measured evidence that the current model cannot meet throughput, isolation, or team-ownership needs. See ADR 0002.

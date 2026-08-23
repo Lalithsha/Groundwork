@@ -1,30 +1,272 @@
 {
   "openapi": "3.0.3",
-  "info": { "title": "Groundwork API", "version": "2.0.0" },
-  "components": {
-    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" } },
-    "schemas": {
-      "ChatRequest": { "type": "object", "required": ["question", "workspaceId"], "properties": { "question": { "type": "string", "maxLength": 2000 }, "retrievalMode": { "type": "string", "enum": ["naive", "vector", "hybrid", "hybrid_rerank"] }, "documentFilter": { "type": "string" }, "workspaceId": { "type": "string", "format": "uuid" } } }
-    }
+  "info": {
+    "title": "Groundwork Engineering Evidence API",
+    "version": "3.0.0",
+    "description": "Workspace-scoped evidence, change analysis, connector, policy, release, document, and grounded retrieval API."
   },
   "security": [{ "bearerAuth": [] }],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "parameters": {
+      "WorkspaceId": { "name": "workspaceId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "ConnectionId": { "name": "connectionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "ChangeId": { "name": "changeId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "ReleaseId": { "name": "releaseId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+    },
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "integer" },
+          "error": { "type": "string" },
+          "message": { "type": "string" },
+          "requestId": { "type": "string" }
+        }
+      },
+      "ConnectionRequest": {
+        "type": "object",
+        "required": ["provider", "externalAccountId", "displayName"],
+        "properties": {
+          "provider": { "type": "string", "enum": ["GITHUB", "JIRA", "CONFLUENCE", "MANUAL", "DEMO"] },
+          "externalAccountId": { "type": "string" },
+          "displayName": { "type": "string" },
+          "scopes": { "type": "array", "items": { "type": "string" } },
+          "metadata": { "type": "object", "additionalProperties": true },
+          "credential": { "type": "string", "writeOnly": true }
+        }
+      },
+      "EvidenceItem": {
+        "type": "object",
+        "required": ["externalId", "artifactType", "title", "sourceVersion", "content"],
+        "properties": {
+          "externalId": { "type": "string" },
+          "artifactType": { "type": "string" },
+          "title": { "type": "string" },
+          "canonicalUrl": { "type": "string", "format": "uri" },
+          "sourceVersion": { "type": "string" },
+          "content": { "type": "string" },
+          "metadata": { "type": "object", "additionalProperties": true },
+          "sourceAcl": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "FindingReview": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "type": "string", "enum": ["CONFIRMED", "DISMISSED", "EDITED"] },
+          "reason": { "type": "string" },
+          "reasonCode": { "type": "string" }
+        }
+      },
+      "PolicyRequest": {
+        "type": "object",
+        "required": ["name", "ruleType", "severity", "definition"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "ruleType": { "type": "string" },
+          "severity": { "type": "string", "enum": ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+          "definition": { "type": "object", "required": ["findingCategory"], "properties": { "findingCategory": { "type": "string" } } },
+          "enabled": { "type": "boolean" }
+        }
+      },
+      "ReleaseRequest": {
+        "type": "object",
+        "required": ["name", "repositoryFullName", "headRef", "changeSetIds"],
+        "properties": {
+          "name": { "type": "string" },
+          "repositoryFullName": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+          "baseRef": { "type": "string" },
+          "headRef": { "type": "string" },
+          "changeSetIds": { "type": "array", "minItems": 1, "items": { "type": "string", "format": "uuid" } }
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "required": ["question", "workspaceId"],
+        "properties": {
+          "question": { "type": "string", "maxLength": 2000 },
+          "retrievalMode": { "type": "string", "enum": ["naive", "vector", "hybrid", "hybrid_rerank"] },
+          "documentFilter": { "type": "string" },
+          "workspaceId": { "type": "string", "format": "uuid" }
+        }
+      }
+    }
+  },
   "paths": {
-    "/api/auth/register": { "post": { "security": [], "responses": { "201": { "description": "Account and tokens created" }, "409": { "description": "Email exists" } } } },
-    "/api/auth/login": { "post": { "security": [], "responses": { "200": { "description": "Tokens issued" }, "401": { "description": "Invalid credentials" } } } },
-    "/api/auth/refresh": { "post": { "security": [], "responses": { "200": { "description": "Tokens rotated" }, "401": { "description": "Invalid refresh token" } } } },
-    "/api/workspaces": { "get": { "responses": { "200": { "description": "Accessible workspaces" } } }, "post": { "responses": { "201": { "description": "Workspace created" } } } },
-    "/api/workspaces/{workspaceId}/members": { "parameters": [{ "name": "workspaceId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "get": { "responses": { "200": { "description": "Workspace members" } } }, "put": { "responses": { "201": { "description": "Membership created or updated" } } } },
-    "/api/documents": { "get": { "responses": { "200": { "description": "Ready document titles" } } }, "delete": { "responses": { "200": { "description": "Document deleted" } } } },
-    "/api/documents/upload": { "post": { "responses": { "202": { "description": "Ingestion queued" }, "400": { "description": "Invalid upload" } } } },
-    "/api/documents/jobs/{jobId}": { "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "get": { "responses": { "200": { "description": "Ingestion job" } } }, "delete": { "responses": { "204": { "description": "Queued job cancelled" } } } },
-    "/api/chat": { "post": { "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatRequest" } } } }, "responses": { "200": { "description": "Grounded answer, contexts, citations, and evidence status" }, "400": { "description": "Invalid question" } } } },
-    "/api/chat/stream": { "get": { "responses": { "200": { "description": "Typed Server-Sent Events" } } } },
-    "/api/admin/reindex": { "post": { "responses": { "202": { "description": "Reindex queued" }, "409": { "description": "Active job exists" } } } },
-    "/api/artifacts": { "get": { "responses": { "200": { "description": "Knowledge artifacts" } } } },
-    "/api/artifacts/extract": { "post": { "responses": { "201": { "description": "Artifact extracted" } } } },
-    "/api/compare": { "post": { "responses": { "201": { "description": "Comparison created" } } } },
-    "/api/review": { "post": { "responses": { "201": { "description": "Review report created" } } } },
-    "/api/graph": { "get": { "responses": { "200": { "description": "Workspace graph" } } } },
-    "/api/graph/extract": { "post": { "responses": { "201": { "description": "Graph extracted" } } } }
+    "/api/auth/register": {
+      "post": { "security": [], "summary": "Create an account and initial tokens", "responses": { "201": { "description": "Created" }, "409": { "description": "Email already exists" } } }
+    },
+    "/api/auth/login": {
+      "post": { "security": [], "summary": "Issue access and refresh tokens", "responses": { "200": { "description": "Authenticated" }, "401": { "description": "Invalid credentials" } } }
+    },
+    "/api/auth/refresh": {
+      "post": { "security": [], "summary": "Rotate refresh token", "responses": { "200": { "description": "Tokens rotated" }, "401": { "description": "Invalid token" } } }
+    },
+    "/api/auth/logout": {
+      "post": { "summary": "Revoke a refresh-token family", "responses": { "204": { "description": "Revoked" } } }
+    },
+    "/api/capabilities": {
+      "get": { "summary": "Return enabled product/integration capabilities", "responses": { "200": { "description": "Capabilities" } } }
+    },
+    "/api/workspaces": {
+      "get": { "summary": "List accessible workspaces", "responses": { "200": { "description": "Workspaces" } } },
+      "post": { "summary": "Create workspace", "responses": { "201": { "description": "Created" } } }
+    },
+    "/api/workspaces/{workspaceId}/connections": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "get": { "summary": "List connector status without credentials", "responses": { "200": { "description": "Connections" } } },
+      "post": {
+        "summary": "Create or update a connector",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConnectionRequest" } } } },
+        "responses": { "201": { "description": "Connected" }, "400": { "description": "Invalid provider/request" } }
+      }
+    },
+    "/api/workspaces/{workspaceId}/connections/{connectionId}/sync": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/ConnectionId" }],
+      "post": { "summary": "Run a provider synchronization", "responses": { "202": { "description": "Sync completed/recorded" } } }
+    },
+    "/api/workspaces/{workspaceId}/connections/{connectionId}/evidence": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/ConnectionId" }],
+      "post": {
+        "summary": "Ingest evidence through the provider-neutral boundary",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["artifacts"], "properties": { "artifacts": { "type": "array", "items": { "$ref": "#/components/schemas/EvidenceItem" } }, "reconcile": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "Sync result" } }
+      }
+    },
+    "/api/workspaces/{workspaceId}/connections/{connectionId}/sync-runs": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/ConnectionId" }],
+      "get": { "summary": "List durable connector sync runs", "responses": { "200": { "description": "Sync runs" } } }
+    },
+    "/api/connections/{connectionId}": {
+      "parameters": [{ "$ref": "#/components/parameters/ConnectionId" }],
+      "delete": { "summary": "Revoke credentials and make owned evidence inaccessible", "responses": { "204": { "description": "Revoked" } } }
+    },
+    "/api/workspaces/{workspaceId}/connections/atlassian/authorize": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "post": { "summary": "Start Atlassian OAuth with selected project/space scope", "responses": { "200": { "description": "Authorization URL and expiring state" } } }
+    },
+    "/api/integrations/atlassian/oauth/callback": {
+      "get": { "security": [], "summary": "Consume the one-time Atlassian OAuth callback", "responses": { "200": { "description": "Connection completed" }, "400": { "description": "Invalid/expired state" } } }
+    },
+    "/api/integrations/github/webhook": {
+      "post": {
+        "security": [],
+        "summary": "Accept an HMAC-verified idempotent GitHub delivery",
+        "parameters": [
+          { "name": "X-Hub-Signature-256", "in": "header", "required": true, "schema": { "type": "string" } },
+          { "name": "X-GitHub-Event", "in": "header", "required": true, "schema": { "type": "string" } },
+          { "name": "X-GitHub-Delivery", "in": "header", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "202": { "description": "Persisted or idempotently acknowledged" }, "401": { "description": "Invalid signature" }, "409": { "description": "Conflicting replay" }, "413": { "description": "Payload too large" } }
+      }
+    },
+    "/api/workspaces/{workspaceId}/changes": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "get": { "summary": "List normalized changes", "parameters": [{ "name": "state", "in": "query", "schema": { "type": "string" } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 100 } }], "responses": { "200": { "description": "Changes" } } }
+    },
+    "/api/changes/{changeId}": {
+      "parameters": [{ "$ref": "#/components/parameters/ChangeId" }],
+      "get": { "summary": "Get a change with findings, policies, and feedback", "responses": { "200": { "description": "Change detail" }, "404": { "description": "Not found" } } }
+    },
+    "/api/changes/{changeId}/reanalyze": {
+      "parameters": [{ "$ref": "#/components/parameters/ChangeId" }],
+      "post": { "summary": "Queue explicit reanalysis of the current head", "responses": { "202": { "description": "Queued" } } }
+    },
+    "/api/changes/{changeId}/evaluate-policies": {
+      "parameters": [{ "$ref": "#/components/parameters/ChangeId" }],
+      "post": { "summary": "Persist current policy evaluations", "responses": { "200": { "description": "Evaluations" } } }
+    },
+    "/api/changes/{changeId}/policies/dry-run": {
+      "parameters": [{ "$ref": "#/components/parameters/ChangeId" }],
+      "post": { "summary": "Preview policies without mutation", "responses": { "200": { "description": "Policy previews" } } }
+    },
+    "/api/changes/{changeId}/findings/{findingId}": {
+      "parameters": [{ "$ref": "#/components/parameters/ChangeId" }, { "name": "findingId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "patch": {
+        "summary": "Record human feedback on a finding",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FindingReview" } } } },
+        "responses": { "200": { "description": "Feedback recorded" } }
+      }
+    },
+    "/api/workspaces/{workspaceId}/evidence": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "get": { "summary": "List evidence artifacts", "parameters": [{ "name": "type", "in": "query", "schema": { "type": "string" } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 200 } }], "responses": { "200": { "description": "Artifacts" } } }
+    },
+    "/api/workspaces/{workspaceId}/evidence/search": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "get": { "summary": "Hybrid search with optional graph expansion", "parameters": [{ "name": "query", "in": "query", "required": true, "schema": { "type": "string" } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50 } }, { "name": "expandGraph", "in": "query", "schema": { "type": "boolean", "default": true } }], "responses": { "200": { "description": "Cited evidence hits" } } }
+    },
+    "/api/workspaces/{workspaceId}/evidence/{artifactId}": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "name": "artifactId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "get": { "summary": "Get artifact versions and relationships", "responses": { "200": { "description": "Artifact detail" } } }
+    },
+    "/api/workspaces/{workspaceId}/evidence/import-documents": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "post": { "summary": "Bridge durable document sources into evidence", "responses": { "200": { "description": "Import result" } } }
+    },
+    "/api/workspaces/{workspaceId}/policies": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "get": { "summary": "List versioned evidence policies", "responses": { "200": { "description": "Policies" } } },
+      "post": {
+        "summary": "Create a policy version",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PolicyRequest" } } } },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/workspaces/{workspaceId}/policies/{policyId}/activation": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "name": "policyId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "patch": { "summary": "Activate/deactivate a specific policy version", "responses": { "200": { "description": "Activation changed" } } }
+    },
+    "/api/workspaces/{workspaceId}/changes/{changeId}/policy-exceptions": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/ChangeId" }],
+      "post": { "summary": "Create a reasoned expiring policy exception", "responses": { "201": { "description": "Exception created" } } }
+    },
+    "/api/workspaces/{workspaceId}/releases": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "get": { "summary": "List release evidence records", "responses": { "200": { "description": "Releases" } } },
+      "post": {
+        "summary": "Freeze selected changes into a release record",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReleaseRequest" } } } },
+        "responses": { "200": { "description": "Release record" } }
+      }
+    },
+    "/api/workspaces/{workspaceId}/releases/{releaseId}": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/ReleaseId" }],
+      "get": { "summary": "Get release record and live digest verification", "responses": { "200": { "description": "Release detail" } } }
+    },
+    "/api/workspaces/{workspaceId}/releases/{releaseId}/export": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/ReleaseId" }],
+      "get": { "summary": "Download canonical JSON release evidence", "responses": { "200": { "description": "JSON export" } } }
+    },
+    "/api/workspaces/{workspaceId}/releases/{releaseId}/export.html": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/ReleaseId" }],
+      "get": { "summary": "Download HTML release evidence", "responses": { "200": { "description": "HTML export" } } }
+    },
+    "/api/workspaces/{workspaceId}/releases/{releaseId}/export.pdf": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/ReleaseId" }],
+      "get": { "summary": "Download PDF release evidence", "responses": { "200": { "description": "PDF export" } } }
+    },
+    "/api/workspaces/{workspaceId}/analytics/summary": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "get": { "summary": "Get product outcome and evidence-quality metrics", "responses": { "200": { "description": "Analytics summary" } } }
+    },
+    "/api/workspaces/{workspaceId}/demo/evidence": {
+      "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+      "post": { "summary": "Seed a realistic cross-source evidence demo", "responses": { "201": { "description": "Seeded" } } }
+    },
+    "/api/documents/upload": {
+      "post": { "summary": "Validate and queue PDF/Markdown/text ingestion", "responses": { "202": { "description": "Queued" }, "400": { "description": "Invalid upload" } } }
+    },
+    "/api/chat": {
+      "post": {
+        "summary": "Answer from workspace-scoped cited document evidence",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatRequest" } } } },
+        "responses": { "200": { "description": "Grounded answer and evidence status" } }
+      }
+    }
   }
 }

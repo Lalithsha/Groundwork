@@ -68,7 +68,7 @@ public class DocumentRepository {
             FROM documents
             WHERE embedding IS NOT NULL
               AND (CAST(? AS uuid) IS NULL OR workspace_id = CAST(? AS uuid))
-              AND (? IS NULL OR LOWER(title) LIKE LOWER(?))
+              AND (CAST(? AS text) IS NULL OR LOWER(title) LIKE LOWER(CAST(? AS text)))
             ORDER BY embedding <=> CAST(? AS vector)
             LIMIT ?
             """.formatted(CHUNK_COLUMNS);
@@ -84,7 +84,7 @@ public class DocumentRepository {
             FROM documents
             WHERE content_tsv @@ websearch_to_tsquery('english', ?)
               AND (CAST(? AS uuid) IS NULL OR workspace_id = CAST(? AS uuid))
-              AND (? IS NULL OR LOWER(title) LIKE LOWER(?))
+              AND (CAST(? AS text) IS NULL OR LOWER(title) LIKE LOWER(CAST(? AS text)))
             ORDER BY score DESC LIMIT ?
             """.formatted(CHUNK_COLUMNS);
         String filter = normalizedFilter(documentFilter);
