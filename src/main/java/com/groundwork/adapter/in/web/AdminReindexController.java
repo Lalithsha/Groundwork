@@ -1,71 +1,51 @@
 package com.groundwork.adapter.in.web;
 
-import org.springframework.cache.CacheManager;
-import org.springframework.dao.DataIntegrityViolationException;
+import com.groundwork.application.ReindexJobRepository;
+import com.groundwork.domain.model.ReindexJob;
+import com.groundwork.application.WorkspaceAccessService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
-@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/admin/reindex")
 public class AdminReindexController {
+    private final ReindexJobRepository jobs;
+    private final WorkspaceAccessService access;
 
-    private final JdbcTemplate jdbcTemplate;
-    private final CacheManager cacheManager;
-
-    public AdminReindexController(JdbcTemplate jdbcTemplate, CacheManager cacheManager) {
-        this.jdbcTemplate = jdbcTemplate;
-        this.cacheManager = cacheManager;
+    public AdminReindexController(ReindexJobRepository jobs, WorkspaceAccessService access) {
+        this.jobs = jobs;
+        this.access = access;
     }
 
     @PostMapping
-    public ResponseEntity<?> triggerReindex() {
-        UUID jobId = UUID.randomUUID();
-        try {
-            String sql = "INSERT INTO reindex_jobs (id, status, started_at) VALUES (?, 'pending', ?)";
-            jdbcTemplate.update(sql, jobId, Instant.now());
-        } catch (DataIntegrityViolationException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", "Reindex job already in progress"));
-        }
-
-        runAsyncReindex(jobId);
-        return ResponseEntity.accepted().body(Map.of("jobId", jobId, "status", "pending"));
+    public ResponseEntity<?> triggerReindex(@RequestParam(required = false) UUID workspaceId) {
+        access.requireAdmin(workspaceId);
+        return jobs.create(workspaceId)
+            .<ResponseEntity<?>>map(job -> ResponseEntity.accepted().body(job))
+            .orElseGet(() -> ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "A reindex job is already active")));
     }
 
     @GetMapping("/{jobId}")
-    public ResponseEntity<?> getJobStatus(@PathVariable UUID jobId) {
-        String sql = "SELECT status, started_at, completed_at, error_message FROM reindex_jobs WHERE id = ?";
-        var result = jdbcTemplate.queryForList(sql, jobId);
-        if (result.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(result.get(0));
+    public ResponseEntity<ReindexJob> getJobStatus(@PathVariable UUID jobId) {
+        var job = jobs.findById(jobId);
+        if (job.isEmpty()) return ResponseEntity.notFound().build();
+        access.requireAdmin(job.get().workspaceId());
+        return ResponseEntity.ok(job.get());
     }
 
-    @Async
-    public void runAsyncReindex(UUID jobId) {
-        try {
-            jdbcTemplate.update("UPDATE reindex_jobs SET status = 'running' WHERE id = ?", jobId);
-            // Simulate document re-fetching and embedding generation
-            Thread.sleep(2000);
-            
-            // Explicit cache invalidation on re-index completion (Part A.3 #3)
-            var cache = cacheManager.getCache("retrieval");
-            if (cache != null) {
-                cache.clear();
-            }
-
-            jdbcTemplate.update("UPDATE reindex_jobs SET status = 'completed', completed_at = ? WHERE id = ?", Instant.now(), jobId);
-        } catch (Exception e) {
-            jdbcTemplate.update("UPDATE reindex_jobs SET status = 'failed', error_message = ? WHERE id = ?", e.getMessage(), jobId);
+    @DeleteMapping("/{jobId}")
+    public ResponseEntity<?> cancel(@PathVariable UUID jobId) {
+        var job = jobs.findById(jobId);
+        if (job.isEmpty()) return ResponseEntity.notFound().build();
+        access.requireAdmin(job.get().workspaceId());
+        if (!jobs.cancel(jobId)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Only pending jobs can be cancelled"));
         }
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,4 +1,5 @@
 import * as d3 from 'd3';
+import { api, ApiError, type KnowledgeArtifactDto } from './api';
 
 // DOM Element Selectors
 const messageList = document.getElementById('messageList') as HTMLDivElement;
@@ -18,6 +19,15 @@ const modalTitle = document.getElementById('modalTitle') as HTMLHeadingElement;
 const modalMessage = document.getElementById('modalMessage') as HTMLDivElement;
 const modalCancelBtn = document.getElementById('modalCancelBtn') as HTMLButtonElement;
 const modalConfirmBtn = document.getElementById('modalConfirmBtn') as HTMLButtonElement;
+const dashboardCorpusCount = document.getElementById('dashboardCorpusCount') as HTMLSpanElement;
+const dashboardArtifactCount = document.getElementById('dashboardArtifactCount') as HTMLSpanElement;
+const authModal = document.getElementById('authModal') as HTMLDivElement;
+const authForm = document.getElementById('authForm') as HTMLFormElement;
+const authEmail = document.getElementById('authEmail') as HTMLInputElement;
+const authPassword = document.getElementById('authPassword') as HTMLInputElement;
+const authError = document.getElementById('authError') as HTMLParagraphElement;
+const registerBtn = document.getElementById('registerBtn') as HTMLButtonElement;
+const accountBtn = document.getElementById('accountBtn') as HTMLButtonElement;
 
 // Workspace Selectors
 const workspaceSelect = document.getElementById('workspaceSelect') as HTMLSelectElement;
@@ -103,95 +113,14 @@ interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
 }
 
 // Global State
-let activeCorpusDocs: string[] = ['groundwork-architecture-v2.pdf', 'api-spec-gateway.json', 'compliance-security-matrix.md'];
+let activeCorpusDocs: string[] = [];
 let selectedMentionIdx = 0;
 let currentTab = 'chat';
-let activeWorkspace = 'ws-groundwork-core';
+let activeWorkspace = '';
 let currentArtifactCatFilter = 'all';
-
-// Mock / Default Intelligence Artifacts Dataset
-const sampleArtifacts: Artifact[] = [
-  {
-    id: 'art-1',
-    category: 'requirements',
-    title: 'Hybrid Vector & FTS Search Latency SLA < 150ms',
-    summary: 'Sub-150ms P99 latency target across reciprocal rank fusion (RRF) reranking over pgvector and PostgreSQL TSVector indexes.',
-    tags: ['SLA', 'Latency', 'RRF', 'pgvector'],
-    docSource: 'groundwork-architecture-v2.pdf',
-    detail: 'Requirement REQ-802: Hybrid retrieval engine must execute cosine similarity over 1536-dim embeddings concurrently with full-text tsquery BM25 evaluation. RRF constant k=60. P99 latency target is 150ms under 50 QPS load.',
-    severityOrPriority: 'Critical'
-  },
-  {
-    id: 'art-2',
-    category: 'requirements',
-    title: 'OAuth2 & JWT Token RBAC Enforcement',
-    summary: 'All API endpoints under /api/* must validate RS256 signed JWT tokens and enforce workspace tenant isolation.',
-    tags: ['Security', 'OAuth2', 'JWT', 'RBAC'],
-    docSource: 'compliance-security-matrix.md',
-    detail: 'Requirement REQ-104: Tenant boundaries are enforced at the database row level via workspace_id foreign keys and Spring Security filters.',
-    severityOrPriority: 'High'
-  },
-  {
-    id: 'art-3',
-    category: 'apis',
-    title: 'POST /api/chat — RAG Stream & Context',
-    summary: 'Main chat endpoint accepting question, retrievalMode, and workspace ID, returning LLM answer with cited document context chunks.',
-    tags: ['REST', 'Chat', 'RAG', 'JSON'],
-    docSource: 'api-spec-gateway.json',
-    detail: 'Endpoint Spec:\nPOST /api/chat\nHeader: Content-Type: application/json\nBody: {"question": "string", "retrievalMode": "hybrid_rerank" | "naive"}\nResponse: {"answer": "string", "retrievedContexts": [{id, title, content, score}]}',
-    severityOrPriority: 'High'
-  },
-  {
-    id: 'art-4',
-    category: 'apis',
-    title: 'POST /api/compare — Multi-Doc Diff Engine',
-    summary: 'Compares Document A vs Document B, returning semantic divergence scores, modified clauses, and conflict synthesis.',
-    tags: ['Diff', 'Comparison', 'APIs'],
-    docSource: 'api-spec-gateway.json',
-    detail: 'Endpoint Spec:\nPOST /api/compare\nBody: {"documentA": "doc1.pdf", "documentB": "doc2.md", "mode": "semantic"}\nResponse: {"similarityScore": 0.86, "additions": [...], "deletions": [...], "conflicts": [...], "synthesis": "string"}',
-    severityOrPriority: 'Medium'
-  },
-  {
-    id: 'art-5',
-    category: 'risks',
-    title: 'Embedding Memory Spikes During Bulk Ingestion',
-    summary: 'Simultaneous 100MB+ document uploads may cause temporary memory pressure on vector chunk batching processes.',
-    tags: ['Memory', 'pgvector', 'Ingestion', 'Risk'],
-    docSource: 'groundwork-architecture-v2.pdf',
-    detail: 'Risk RSK-04: Batch size for OpenAI text-embedding-3-small must be capped at 50 chunks per batch to prevent OOM errors in Spring Boot worker nodes.',
-    severityOrPriority: 'High'
-  },
-  {
-    id: 'art-6',
-    category: 'risks',
-    title: 'Stale Redis Query Cache During Async Re-indexing',
-    summary: 'When an admin triggers re-index, cached RAG answers may persist for up to 5 minutes unless explicitly invalidated.',
-    tags: ['Cache', 'Redis', 'Staleness'],
-    docSource: 'compliance-security-matrix.md',
-    detail: 'Risk RSK-12: Distributed Redis lock prevents duplicate re-index jobs, but key invalidation for vector cache must publish a Redis Pub/Sub purge signal on completion.',
-    severityOrPriority: 'Medium'
-  },
-  {
-    id: 'art-7',
-    category: 'decisions',
-    title: 'ADR-001: Reciprocal Rank Fusion (RRF) over Cross-Encoder',
-    summary: 'Chose RRF (k=60) for hybrid search combining BM25 and vector cosine distance to avoid GPU latency overhead of cross-encoders.',
-    tags: ['ADR', 'RRF', 'Search', 'Architecture'],
-    docSource: 'groundwork-architecture-v2.pdf',
-    detail: 'Decision: RRF provides 92% of cross-encoder reranking quality while executing in under 12ms CPU time versus 180ms GPU inference overhead.',
-    severityOrPriority: 'High'
-  },
-  {
-    id: 'art-8',
-    category: 'decisions',
-    title: 'ADR-002: PostgreSQL + pgvector for Unified Persistence',
-    summary: 'Selected pgvector inside PostgreSQL to eliminate operational complexity of running separate vector storage and relational engines.',
-    tags: ['ADR', 'PostgreSQL', 'pgvector', 'Database'],
-    docSource: 'groundwork-architecture-v2.pdf',
-    detail: 'Decision: Single transactional database simplifies backups, point-in-time recovery, and workspace foreign key cascading.',
-    severityOrPriority: 'Medium'
-  }
-];
+let intelligenceArtifacts: Artifact[] = [];
+let workspaceListenerInitialized = false;
+let selectedDocumentFilter: string | undefined;
 
 // Helper: Toast Notifications
 function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') {
@@ -203,7 +132,11 @@ function showToast(message: string, type: 'success' | 'error' | 'warning' | 'inf
 
   toast.className = `bg-slate-900 border text-slate-100 p-3 px-4 rounded-xl shadow-2xl backdrop-blur-xl text-xs flex items-center gap-2 animate-toast-slide ${borderClass}`;
   const icon = type === 'success' ? '✅' : (type === 'error' ? '⚠️' : (type === 'warning' ? '🔔' : 'ℹ️'));
-  toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+  const iconElement = document.createElement('span');
+  iconElement.textContent = icon;
+  const messageElement = document.createElement('span');
+  messageElement.textContent = message;
+  toast.append(iconElement, messageElement);
   
   toastContainer.appendChild(toast);
   setTimeout(() => {
@@ -212,6 +145,48 @@ function showToast(message: string, type: 'success' | 'error' | 'warning' | 'inf
     toast.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
     setTimeout(() => toast.remove(), 300);
   }, 4000);
+}
+
+function initAuth() {
+  const show = (message = '') => {
+    authError.textContent = message;
+    authError.classList.toggle('hidden', !message);
+    authModal.classList.remove('hidden');
+    authEmail.focus();
+  };
+  const submit = async (register: boolean) => {
+    authError.classList.add('hidden');
+    try {
+      const tokens = register
+        ? await api.register(authEmail.value, authPassword.value)
+        : await api.login(authEmail.value, authPassword.value);
+      api.setSession(tokens);
+      authModal.classList.add('hidden');
+      accountBtn.textContent = tokens.email;
+      await initWorkspace();
+      await fetchCorpusDocs();
+      showToast(register ? 'Account created' : 'Signed in', 'success');
+    } catch (error) {
+      show(errorMessage(error));
+    }
+  };
+  authForm.addEventListener('submit', event => { event.preventDefault(); void submit(false); });
+  registerBtn.addEventListener('click', () => void submit(true));
+  accountBtn.textContent = localStorage.getItem('groundwork_user_email') || 'Sign in';
+  accountBtn.addEventListener('click', () => {
+    if (api.isAuthenticated()) {
+      api.clearSession();
+      activeWorkspace = '';
+      accountBtn.textContent = 'Sign in';
+      showToast('Signed out', 'info');
+    }
+    show();
+  });
+  window.addEventListener('groundwork:unauthorized', event => {
+    const message = event instanceof CustomEvent && typeof event.detail === 'string' ? event.detail : 'Please sign in';
+    show(message);
+  });
+  return { show };
 }
 
 // Helper: Confirmation Modal
@@ -306,7 +281,7 @@ function switchTab(tabName: string) {
 
   // Lazy render triggers
   if (tabName === 'intelligence') {
-    renderArtifactsGrid();
+    void loadArtifacts();
   } else if (tabName === 'compare') {
     populateCompareDropdowns();
   } else if (tabName === 'review') {
@@ -319,8 +294,27 @@ function switchTab(tabName: string) {
 // -------------------------------------------------------------
 // WORKSPACE SELECTION & CORPUS MANAGEMENT
 // -------------------------------------------------------------
-function initWorkspace() {
-  if (workspaceSelect) {
+async function initWorkspace() {
+  try {
+    let workspaces = await api.workspaces();
+    if (workspaces.length === 0) {
+      workspaces = [await api.createWorkspace('Groundwork Core', 'Default document intelligence workspace')];
+    }
+    workspaceSelect.innerHTML = '';
+    workspaces.forEach(workspace => {
+      const option = document.createElement('option');
+      option.value = workspace.id;
+      option.textContent = `📁 ${workspace.name}`;
+      workspaceSelect.appendChild(option);
+    });
+    activeWorkspace = workspaces[0].id;
+    if (currentWorkspaceName) currentWorkspaceName.innerText = workspaces[0].name;
+  } catch (error) {
+    showToast(errorMessage(error), 'error');
+  }
+
+  if (workspaceSelect && !workspaceListenerInitialized) {
+    workspaceListenerInitialized = true;
     workspaceSelect.addEventListener('change', () => {
       activeWorkspace = workspaceSelect.value;
       const selectedOption = workspaceSelect.options[workspaceSelect.selectedIndex].text;
@@ -338,21 +332,16 @@ function initWorkspace() {
 }
 
 async function fetchCorpusDocs() {
+  if (!activeWorkspace) {
+    activeCorpusDocs = [];
+    renderCorpusList();
+    return;
+  }
   try {
-    let res;
-    try {
-      res = await fetch('http://localhost:8080/api/documents');
-    } catch (e) {
-      res = await fetch('/api/documents');
-    }
-    if (res && res.ok) {
-      const docs = await res.json();
-      if (Array.isArray(docs) && docs.length > 0) {
-        activeCorpusDocs = docs;
-      }
-    }
-  } catch (err) {
-    console.log('Using default active corpus docs');
+    activeCorpusDocs = await api.documents(activeWorkspace);
+  } catch (error) {
+    activeCorpusDocs = [];
+    showToast(errorMessage(error), 'error');
   }
 
   renderCorpusList();
@@ -365,6 +354,7 @@ function renderCorpusList() {
   corpusList.innerHTML = '';
 
   if (corpusCountBadge) corpusCountBadge.innerText = `${activeCorpusDocs.length} files`;
+  if (dashboardCorpusCount) dashboardCorpusCount.innerText = `${activeCorpusDocs.length} ${activeCorpusDocs.length === 1 ? 'File' : 'Files'}`;
 
   if (activeCorpusDocs.length === 0) {
     corpusList.innerHTML = '<div class="text-xs text-slate-500 p-1">No documents uploaded yet</div>';
@@ -377,9 +367,9 @@ function renderCorpusList() {
     item.innerHTML = `
       <div class="flex items-center gap-2 overflow-hidden">
         <span class="text-xs">📄</span>
-        <span class="truncate font-medium text-[11px]" title="${docTitle}">${docTitle}</span>
+        <span class="truncate font-medium text-[11px]" title="${escapeHtml(docTitle)}">${escapeHtml(docTitle)}</span>
       </div>
-      <button class="delete-btn text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 p-1 rounded-lg transition-all" data-title="${docTitle}" title="Delete Document">
+      <button class="delete-btn text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 p-1 rounded-lg transition-all" title="Delete Document">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
       </button>
     `;
@@ -396,19 +386,11 @@ async function deleteDocument(title: string) {
   if (!confirmed) return;
 
   try {
-    let res;
-    try {
-      res = await fetch(`http://localhost:8080/api/documents?title=${encodeURIComponent(title)}`, { method: 'DELETE' });
-    } catch (e) {
-      res = await fetch(`/api/documents?title=${encodeURIComponent(title)}`, { method: 'DELETE' });
-    }
-    if (res && res.ok) {
-      showToast(`Deleted "${title}"`, 'success');
-    } else {
-      showToast(`Removed "${title}" from workspace list`, 'info');
-    }
-  } catch (err) {
-    showToast(`Removed "${title}" from workspace list`, 'info');
+    await api.deleteDocument(title, activeWorkspace);
+    showToast(`Deleted "${title}"`, 'success');
+  } catch (error) {
+    showToast(errorMessage(error), 'error');
+    return;
   }
 
   activeCorpusDocs = activeCorpusDocs.filter(d => d !== title);
@@ -436,32 +418,13 @@ function initChat() {
     const mode = modeSelect ? modeSelect.value : 'hybrid_rerank';
 
     try {
-      let response;
-      try {
-        response = await fetch('http://localhost:8080/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: text, retrievalMode: mode, workspace: activeWorkspace })
-        });
-      } catch (e) {
-        response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: text, retrievalMode: mode, workspace: activeWorkspace })
-        });
-      }
-
-      if (response.ok) {
-        const data = await response.json();
-        bubbleDiv.innerText = data.answer || 'Response received.';
-        if (data.retrievedContexts && data.retrievedContexts.length > 0) {
-          appendContextDrawer(messageContent, data.retrievedContexts);
-        }
-      } else {
-        bubbleDiv.innerText = `Groundwork Assistant: Processed query "${text}". Mode: ${mode}. Hybrid reranker identified relevant context across ${activeCorpusDocs.length} uploaded documents.`;
-      }
-    } catch (err) {
-      bubbleDiv.innerText = `Groundwork Assistant: Analyzed query "${text}". Hybrid RRF reranking active across ${activeCorpusDocs.length} corpus documents.`;
+      const data = await api.chat(text, mode, activeWorkspace, selectedDocumentFilter);
+      selectedDocumentFilter = undefined;
+      bubbleDiv.innerText = data.answer;
+      if (data.retrievedContexts.length > 0) appendContextDrawer(messageContent, data.retrievedContexts);
+      if (data.citations.length > 0) appendCitations(messageContent, data.citations);
+    } catch (error) {
+      bubbleDiv.innerText = errorMessage(error);
     }
   });
 
@@ -522,22 +485,10 @@ function initChat() {
   if (reindexBtn) {
     reindexBtn.addEventListener('click', async () => {
       try {
-        let res;
-        try {
-          res = await fetch('http://localhost:8080/api/admin/reindex', { method: 'POST' });
-        } catch (e) {
-          res = await fetch('/api/admin/reindex', { method: 'POST' });
-        }
-        if (res && res.status === 409) {
-          showToast('Re-index job already in progress', 'warning');
-        } else if (res && res.ok) {
-          const data = await res.json();
-          showToast(`Async re-index triggered! Job ID: ${data.jobId || 'JOB-902'}`, 'success');
-        } else {
-          showToast('Triggered async re-index across vector store!', 'success');
-        }
-      } catch (err) {
-        showToast('Triggered async re-index across vector store!', 'success');
+        const job = await api.reindex(activeWorkspace);
+        showToast(`Re-index queued. Job ID: ${job.id}`, 'success');
+      } catch (error) {
+        showToast(errorMessage(error), error instanceof ApiError && error.status === 409 ? 'warning' : 'error');
       }
     });
   }
@@ -584,36 +535,103 @@ async function processFileUpload(file: File) {
   showToast(`Uploading "${file.name}"...`, 'info');
   const { bubbleDiv } = appendAssistantMessage(`📄 Uploading and indexing "${file.name}"...`);
 
-  const formData = new FormData();
-  formData.append('file', file);
-
   try {
-    let res;
-    try {
-      res = await fetch('http://localhost:8080/api/documents/upload', { method: 'POST', body: formData });
-    } catch (e) {
-      res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
-    }
-
-    if (res && res.ok) {
-      const data = await res.json();
-      showToast(`Uploaded "${data.filename || file.name}"`, 'success');
-      bubbleDiv.innerText = `✅ Successfully uploaded "${data.filename || file.name}"! Indexed ${data.chunksIndexed || 24} chunks into pgvector store.`;
+    const uploaded = await api.upload(file, activeWorkspace);
+    if (uploaded.jobId) {
+      bubbleDiv.innerText = `⏳ "${uploaded.filename}" was uploaded and is being indexed.`;
+      await waitForIngestion(uploaded.jobId, bubbleDiv);
     } else {
-      showToast(`Uploaded "${file.name}" to workspace`, 'success');
-      bubbleDiv.innerText = `✅ Successfully uploaded "${file.name}"! Document indexed into vector database.`;
+      bubbleDiv.innerText = `✅ "${uploaded.filename}" is already indexed.`;
     }
-  } catch (err) {
-    showToast(`Uploaded "${file.name}" to workspace`, 'success');
-    bubbleDiv.innerText = `✅ Successfully uploaded "${file.name}"! Document indexed into vector database.`;
+    showToast(`Indexed "${uploaded.filename}"`, 'success');
+    await fetchCorpusDocs();
+  } catch (error) {
+    showToast(errorMessage(error), 'error');
+    bubbleDiv.innerText = `❌ ${errorMessage(error)}`;
+    return;
   }
+}
 
-  if (!activeCorpusDocs.includes(file.name)) {
-    activeCorpusDocs.push(file.name);
+async function waitForIngestion(jobId: string, bubble: HTMLElement) {
+  const deadline = Date.now() + 120_000;
+  while (Date.now() < deadline) {
+    const job = await api.ingestionJob(jobId);
+    bubble.innerText = `⏳ Indexing document: ${job.progressCurrent}/${job.progressTotal || '?'} chunks`;
+    if (job.status === 'COMPLETED') {
+      bubble.innerText = `✅ Document indexed successfully (${job.progressTotal} chunks).`;
+      return;
+    }
+    if (job.status === 'FAILED' || job.status === 'CANCELLED') throw new Error(job.errorMessage || 'Indexing failed');
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
-  renderCorpusList();
-  populateCompareDropdowns();
-  populateReviewDropdowns();
+  throw new Error('Indexing is still running; check job status later');
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unexpected application error';
+}
+
+function escapeHtml(value: string): string {
+  const element = document.createElement('div');
+  element.textContent = value;
+  return element.innerHTML;
+}
+
+function normalizeComparison(response: Record<string, unknown>, docA: string, docB: string) {
+  let detail: Record<string, unknown> = {};
+  try { detail = JSON.parse(String(response.diffSummary || '{}')); } catch { /* Render the safe defaults below. */ }
+  const score = Number(detail.similarityScore ?? 0);
+  const differences = Array.isArray(detail.keyDifferences) ? detail.keyDifferences.map(String) : [];
+  const conflicts = Array.isArray(detail.conflictPoints) ? detail.conflictPoints.map(String) : [];
+  return {
+    similarityScore: Math.round(score * 1000) / 10,
+    additionsCount: differences.length,
+    deletionsCount: 0,
+    conflictsCount: conflicts.length,
+    docATitle: docA,
+    docBTitle: docB,
+    diffLines: [
+      ...differences.map(text => ({ type: 'mod', text })),
+      ...conflicts.map(text => ({ type: 'remove', text }))
+    ],
+    synthesis: String(detail.overallComparison || response.comparisonResult || 'Comparison completed.')
+  };
+}
+
+function normalizeReview(response: Record<string, unknown>, scope: string, focus: string) {
+  let report: Record<string, unknown> = {};
+  try { report = JSON.parse(String(response.reportData || '{}')); } catch { /* Render repository fields below. */ }
+  const score = Number(report.qualityScore ?? response.score ?? 0);
+  const recommendations = Array.isArray(report.recommendations) ? report.recommendations.map(String) : [];
+  return {
+    healthScore: score,
+    grade: score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : 'D',
+    totalIssues: recommendations.length,
+    criticalCount: 0,
+    highCount: 0,
+    mediumCount: recommendations.length,
+    lowCount: 0,
+    findings: recommendations.map((recommendation, index) => ({
+      id: `REC-${index + 1}`,
+      title: recommendation,
+      severity: 'Medium',
+      category: focus === 'all' ? 'Architecture Review' : focus,
+      location: scope,
+      description: recommendation,
+      impact: String(report.feedback || response.feedback || 'Review recommendation'),
+      fixCode: 'Review the cited document section and record the resulting architecture decision.'
+    }))
+  };
+}
+
+function mapGraphType(type: string): GraphNode['type'] {
+  const normalized = type.toUpperCase();
+  if (normalized === 'API') return 'API';
+  if (normalized === 'RISK') return 'Risk';
+  if (normalized === 'DECISION' || normalized === 'ADR') return 'Decision';
+  if (normalized === 'DOCUMENT') return 'Document';
+  if (normalized === 'CHUNK') return 'Chunk';
+  return 'Entity';
 }
 
 function appendUserMessage(text: string): HTMLDivElement {
@@ -675,8 +693,8 @@ function appendContextDrawer(container: HTMLDivElement, chunks: DocumentChunk[])
     const item = document.createElement('div');
     item.className = 'bg-slate-950 border border-slate-800 p-2.5 rounded-lg text-slate-300 leading-relaxed';
     item.innerHTML = `
-      <div class="font-semibold text-cyan-400 mb-1">${chunk.title || 'Document Chunk'} (Score: ${chunk.score ? chunk.score.toFixed(4) : '1.0'})</div>
-      <div>${chunk.content}</div>
+      <div class="font-semibold text-cyan-400 mb-1">${escapeHtml(chunk.title || 'Document Chunk')} (Score: ${chunk.score ? chunk.score.toFixed(4) : '1.0'})</div>
+      <div>${escapeHtml(chunk.content)}</div>
     `;
     body.appendChild(item);
   });
@@ -697,6 +715,20 @@ function appendContextDrawer(container: HTMLDivElement, chunks: DocumentChunk[])
   container.appendChild(drawer);
 }
 
+function appendCitations(container: HTMLDivElement, citations: Array<{ citationId: string; documentTitle: string; sectionTitle?: string; pageNumber?: number; score: number }>) {
+  const list = document.createElement('div');
+  list.className = 'flex flex-wrap gap-2 mt-2';
+  citations.forEach(citation => {
+    const item = document.createElement('span');
+    item.className = 'text-[10px] font-mono rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300';
+    const location = citation.pageNumber ? ` p.${citation.pageNumber}` : citation.sectionTitle ? ` · ${citation.sectionTitle}` : '';
+    item.textContent = `[${citation.citationId}] ${citation.documentTitle}${location}`;
+    item.title = `Retrieval score ${citation.score.toFixed(4)}`;
+    list.appendChild(item);
+  });
+  container.appendChild(list);
+}
+
 function renderMentionDropdown(matches: string[], atIdx: number) {
   if (!mentionDropdown) return;
   mentionDropdown.innerHTML = '';
@@ -705,9 +737,14 @@ function renderMentionDropdown(matches: string[], atIdx: number) {
   matches.forEach((docTitle, idx) => {
     const item = document.createElement('div');
     item.className = `mention-item flex items-center gap-2 p-2 px-3 rounded-xl text-xs text-slate-300 hover:bg-indigo-500/20 hover:text-white cursor-pointer transition-all ${idx === 0 ? 'bg-indigo-500/20 text-white font-semibold' : ''}`;
-    item.innerHTML = `<span>📄</span> <span>${docTitle}</span>`;
+    const icon = document.createElement('span');
+    icon.textContent = '📄';
+    const label = document.createElement('span');
+    label.textContent = docTitle;
+    item.append(icon, label);
     item.addEventListener('click', () => {
       const beforeAt = userInput.value.substring(0, atIdx);
+      selectedDocumentFilter = docTitle;
       userInput.value = `${beforeAt}@${docTitle} `;
       userInput.focus();
       hideMentionDropdown();
@@ -757,12 +794,18 @@ function initIntelligenceView() {
   }
 
   if (extractArtifactsBtn) {
-    extractArtifactsBtn.addEventListener('click', () => {
-      showToast('Re-extracting artifacts from uploaded documents...', 'info');
-      setTimeout(() => {
-        showToast('Successfully extracted 8 intelligence artifacts!', 'success');
-        renderArtifactsGrid();
-      }, 1200);
+    extractArtifactsBtn.addEventListener('click', async () => {
+      if (activeCorpusDocs.length === 0) {
+        showToast('Upload a document before extracting artifacts', 'warning');
+        return;
+      }
+      try {
+        await api.extractArtifact(activeCorpusDocs[0], 'requirements', activeWorkspace);
+        await loadArtifacts();
+        showToast('Artifact extraction completed', 'success');
+      } catch (error) {
+        showToast(errorMessage(error), 'error');
+      }
     });
   }
 
@@ -779,7 +822,7 @@ function renderArtifactsGrid() {
 
   const search = artifactSearchInput ? artifactSearchInput.value.toLowerCase().trim() : '';
 
-  const filtered = sampleArtifacts.filter(art => {
+  const filtered = intelligenceArtifacts.filter(art => {
     const matchesCat = currentArtifactCatFilter === 'all' || art.category === currentArtifactCatFilter;
     const matchesSearch = !search || art.title.toLowerCase().includes(search) || art.summary.toLowerCase().includes(search) || art.tags.some(t => t.toLowerCase().includes(search));
     return matchesCat && matchesSearch;
@@ -809,22 +852,22 @@ function renderArtifactsGrid() {
       <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
           <span class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${catBadgeColor} flex items-center gap-1">
-            <span>${icon}</span> <span>${art.category}</span>
+            <span>${icon}</span> <span>${escapeHtml(art.category)}</span>
           </span>
           <span class="text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${sevBadgeColor}">
-            ${art.severityOrPriority}
+            ${escapeHtml(art.severityOrPriority)}
           </span>
         </div>
-        <h4 class="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors leading-snug">${art.title}</h4>
-        <p class="text-xs text-slate-400 leading-relaxed line-clamp-3">${art.summary}</p>
+        <h4 class="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors leading-snug">${escapeHtml(art.title)}</h4>
+        <p class="text-xs text-slate-400 leading-relaxed line-clamp-3">${escapeHtml(art.summary)}</p>
       </div>
 
       <div class="mt-4 pt-3 border-t border-slate-800/80 flex flex-col gap-2">
         <div class="flex flex-wrap gap-1">
-          ${art.tags.map(t => `<span class="text-[9px] font-mono bg-slate-950 text-slate-400 border border-slate-800 px-1.5 py-0.5 rounded">${t}</span>`).join('')}
+          ${art.tags.map(t => `<span class="text-[9px] font-mono bg-slate-950 text-slate-400 border border-slate-800 px-1.5 py-0.5 rounded">${escapeHtml(t)}</span>`).join('')}
         </div>
         <div class="flex items-center justify-between text-[10px] text-slate-500 mt-1">
-          <span class="truncate max-w-[150px]">📄 ${art.docSource}</span>
+          <span class="truncate max-w-[150px]">📄 ${escapeHtml(art.docSource)}</span>
           <span class="text-indigo-400 group-hover:translate-x-0.5 transition-transform font-bold">Details &rarr;</span>
         </div>
       </div>
@@ -833,6 +876,45 @@ function renderArtifactsGrid() {
     card.addEventListener('click', () => openArtifactModal(art));
     artifactsGrid.appendChild(card);
   });
+}
+
+async function loadArtifacts() {
+  if (!activeWorkspace) return;
+  try {
+    const artifacts = await api.artifacts(activeWorkspace);
+    intelligenceArtifacts = artifacts.map(toArtifact);
+    if (dashboardArtifactCount) dashboardArtifactCount.innerText = `${intelligenceArtifacts.length} ${intelligenceArtifacts.length === 1 ? 'Spec' : 'Specs'}`;
+  } catch (error) {
+    intelligenceArtifacts = [];
+    if (dashboardArtifactCount) dashboardArtifactCount.innerText = '0 Specs';
+    showToast(errorMessage(error), 'error');
+  }
+  renderArtifactsGrid();
+}
+
+function toArtifact(value: KnowledgeArtifactDto): Artifact {
+  let structured: Record<string, unknown> = {};
+  try { structured = JSON.parse(value.structuredData || '{}'); } catch { /* Keep raw content below. */ }
+  const category = normalizeArtifactCategory(value.artifactType);
+  const keyPoints = Array.isArray(structured.keyPoints) ? structured.keyPoints.map(String) : [];
+  return {
+    id: value.id,
+    category,
+    title: value.title,
+    summary: typeof structured.summary === 'string' ? structured.summary : value.content.slice(0, 240),
+    tags: keyPoints.slice(0, 4),
+    docSource: value.title,
+    detail: value.structuredData || value.content,
+    severityOrPriority: 'Medium'
+  };
+}
+
+function normalizeArtifactCategory(type: string): Artifact['category'] {
+  const normalized = type.toLowerCase();
+  if (normalized.includes('api')) return 'apis';
+  if (normalized.includes('risk')) return 'risks';
+  if (normalized.includes('decision') || normalized.includes('adr')) return 'decisions';
+  return 'requirements';
 }
 
 function openArtifactModal(art: Artifact) {
@@ -849,17 +931,17 @@ function openArtifactModal(art: Artifact) {
     artifactModalBody.innerHTML = `
       <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
         <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">SUMMARY & OVERVIEW</div>
-        <div class="text-slate-200">${art.summary}</div>
+        <div class="text-slate-200">${escapeHtml(art.summary)}</div>
       </div>
       
       <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
         <div class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">FULL TECHNICAL SPECIFICATION</div>
-        <pre class="font-mono text-[11px] text-slate-300 whitespace-pre-wrap leading-relaxed">${art.detail}</pre>
+        <pre class="font-mono text-[11px] text-slate-300 whitespace-pre-wrap leading-relaxed">${escapeHtml(art.detail)}</pre>
       </div>
 
       <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2">
-        <span>Source Document: <strong class="text-white">${art.docSource}</strong></span>
-        <span>Priority Level: <strong class="text-indigo-300">${art.severityOrPriority}</strong></span>
+        <span>Source Document: <strong class="text-white">${escapeHtml(art.docSource)}</strong></span>
+        <span>Priority Level: <strong class="text-indigo-300">${escapeHtml(art.severityOrPriority)}</strong></span>
       </div>
     `;
   }
@@ -894,29 +976,11 @@ function initCompareView() {
       runCompareBtn.innerHTML = '<span>⚡</span> Comparing...';
 
       try {
-        let res;
-        try {
-          res = await fetch('http://localhost:8080/api/compare', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ documentA: docA, documentB: docB, mode: mode, workspace: activeWorkspace })
-          });
-        } catch (e) {
-          res = await fetch('/api/compare', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ documentA: docA, documentB: docB, mode: mode, workspace: activeWorkspace })
-          });
-        }
-
-        if (res && res.ok) {
-          const data = await res.json();
-          renderCompareResults(data, docA, docB);
-        } else {
-          renderCompareResults(generateFallbackDiffData(docA, docB, mode), docA, docB);
-        }
-      } catch (err) {
-        renderCompareResults(generateFallbackDiffData(docA, docB, mode), docA, docB);
+        const response = await api.compare(docA, docB, activeWorkspace) as Record<string, unknown>;
+        renderCompareResults(normalizeComparison(response, docA, docB), docA, docB);
+      } catch (error) {
+        showToast(errorMessage(error), 'error');
+        compareResults.innerHTML = `<div class="p-6 text-sm text-rose-300">${escapeHtml(errorMessage(error))}</div>`;
       } finally {
         runCompareBtn.disabled = false;
         runCompareBtn.innerHTML = '<span>⚔️</span> Compare Documents';
@@ -948,30 +1012,6 @@ function populateCompareDropdowns() {
   });
 }
 
-function generateFallbackDiffData(docA: string, docB: string, mode: string) {
-  return {
-    similarityScore: 84.5,
-    additionsCount: 4,
-    deletionsCount: 2,
-    conflictsCount: 1,
-    docATitle: docA,
-    docBTitle: docB,
-    diffLines: [
-      { type: 'same', text: 'SECTION 1.0: ARCHITECTURAL OVERVIEW AND RETRIEVAL MODEL' },
-      { type: 'same', text: '1.1 System component relies on PostgreSQL pgvector extension for dense vector storage.' },
-      { type: 'remove', text: '1.2 Max query batch size default limit is capped at 10 concurrent requests.' },
-      { type: 'add', text: '1.2 Max query batch size default limit is scaled to 50 concurrent requests with Redis token bucket.' },
-      { type: 'same', text: 'SECTION 2.0: RETRIEVAL & RERANKING ALGORITHMS' },
-      { type: 'mod', text: '2.1 [DIVERGENCE] Doc A specifies cosine similarity distance; Doc B mandates inner product dot distance.' },
-      { type: 'add', text: '2.2 Reciprocal Rank Fusion (RRF) formula must use smoothing constant k = 60.' },
-      { type: 'same', text: 'SECTION 3.0: SECURITY & COMPLIANCE RULES' },
-      { type: 'remove', text: '3.1 Ingestion accepts unauthenticated localhost admin triggers.' },
-      { type: 'add', text: '3.1 Ingestion requires Bearer OAuth2 JWT with ROLE_ADMIN claim.' }
-    ],
-    synthesis: `AI Synthesis (${mode.toUpperCase()} Mode):\nComparison between "${docA}" and "${docB}" shows 84.5% structural alignment. Key discrepancy identified in Section 2.1 regarding vector distance metric (Cosine vs Inner Product). Consensus reached on Section 3.1 requiring JWT OAuth2 RBAC authentication.`
-  };
-}
-
 function renderCompareResults(data: any, docA: string, docB: string) {
   if (!compareResults) return;
   compareResults.innerHTML = `
@@ -980,21 +1020,21 @@ function renderCompareResults(data: any, docA: string, docB: string) {
       <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col gap-1">
         <span class="text-[10px] font-bold text-slate-400 uppercase">SEMANTIC SIMILARITY</span>
         <div class="flex items-baseline gap-2">
-          <span class="text-2xl font-extrabold text-cyan-400">${data.similarityScore || 84.5}%</span>
+          <span class="text-2xl font-extrabold text-cyan-400">${data.similarityScore ?? 0}%</span>
           <span class="text-xs text-slate-400">match</span>
         </div>
       </div>
       <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col gap-1">
         <span class="text-[10px] font-bold text-slate-400 uppercase">ADDED CLAUSES (+)</span>
-        <span class="text-2xl font-extrabold text-emerald-400">+${data.additionsCount || 4}</span>
+        <span class="text-2xl font-extrabold text-emerald-400">+${data.additionsCount ?? 0}</span>
       </div>
       <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col gap-1">
         <span class="text-[10px] font-bold text-slate-400 uppercase">REMOVED CLAUSES (-)</span>
-        <span class="text-2xl font-extrabold text-rose-400">-${data.deletionsCount || 2}</span>
+        <span class="text-2xl font-extrabold text-rose-400">-${data.deletionsCount ?? 0}</span>
       </div>
       <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col gap-1">
         <span class="text-[10px] font-bold text-slate-400 uppercase">CONFLICTING CLAUSES</span>
-        <span class="text-2xl font-extrabold text-amber-400">${data.conflictsCount || 1} Conflict</span>
+        <span class="text-2xl font-extrabold text-amber-400">${data.conflictsCount ?? 0} Conflict</span>
       </div>
     </div>
 
@@ -1002,9 +1042,9 @@ function renderCompareResults(data: any, docA: string, docB: string) {
     <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-bold text-slate-300">📄 ${docA}</span>
+          <span class="text-xs font-bold text-slate-300">📄 ${escapeHtml(docA)}</span>
           <span class="text-xs text-slate-500">vs</span>
-          <span class="text-xs font-bold text-slate-300">📄 ${docB}</span>
+          <span class="text-xs font-bold text-slate-300">📄 ${escapeHtml(docB)}</span>
         </div>
         <span class="text-[10px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-0.5 rounded">INLINE DIFF VIEW</span>
       </div>
@@ -1015,7 +1055,7 @@ function renderCompareResults(data: any, docA: string, docB: string) {
                            (line.type === 'remove' ? 'diff-line-remove' :
                            (line.type === 'mod' ? 'diff-line-mod' : 'diff-line-same'));
           const prefix = line.type === 'add' ? '+ ' : (line.type === 'remove' ? '- ' : (line.type === 'mod' ? '~ ' : '  '));
-          return `<div class="${lineClass}">${prefix}${line.text}</div>`;
+          return `<div class="${lineClass}">${prefix}${escapeHtml(String(line.text ?? ''))}</div>`;
         }).join('') : ''}
       </div>
     </div>
@@ -1025,7 +1065,7 @@ function renderCompareResults(data: any, docA: string, docB: string) {
       <div class="flex items-center gap-2 text-indigo-300 font-bold text-xs">
         <span>⚡</span> AI Conflict Resolution & Synthesis
       </div>
-      <div class="text-xs text-slate-200 leading-relaxed font-mono whitespace-pre-wrap">${data.synthesis}</div>
+      <div class="text-xs text-slate-200 leading-relaxed font-mono whitespace-pre-wrap">${escapeHtml(String(data.synthesis ?? ''))}</div>
     </div>
   `;
 }
@@ -1046,21 +1086,13 @@ function initReviewView() {
       runReviewBtn.innerHTML = '<span>⚡</span> Analyzing...';
 
       try {
-        let res;
-        try {
-          res = await fetch(`http://localhost:8080/api/review?scope=${encodeURIComponent(scope)}&focus=${encodeURIComponent(focus)}`);
-        } catch (e) {
-          res = await fetch(`/api/review?scope=${encodeURIComponent(scope)}&focus=${encodeURIComponent(focus)}`);
-        }
-
-        if (res && res.ok) {
-          const data = await res.json();
-          renderReviewDashboard(data);
-        } else {
-          renderReviewDashboard(generateFallbackReviewData(scope, focus));
-        }
-      } catch (err) {
-        renderReviewDashboard(generateFallbackReviewData(scope, focus));
+        const documentTitle = scope === 'all' ? activeCorpusDocs[0] : scope;
+        if (!documentTitle) throw new Error('Upload a document before running a review');
+        const response = await api.review(documentTitle, activeWorkspace) as Record<string, unknown>;
+        renderReviewDashboard(normalizeReview(response, scope, focus));
+      } catch (error) {
+        showToast(errorMessage(error), 'error');
+        reviewResults.innerHTML = `<div class="p-6 text-sm text-rose-300">${escapeHtml(errorMessage(error))}</div>`;
       } finally {
         runReviewBtn.disabled = false;
         runReviewBtn.innerHTML = '<span>🔍</span> Run AI Review';
@@ -1083,60 +1115,6 @@ function populateReviewDropdowns() {
   });
 }
 
-function generateFallbackReviewData(scope: string, focus: string) {
-  return {
-    healthScore: 88,
-    grade: 'A-',
-    totalIssues: 5,
-    criticalCount: 0,
-    highCount: 2,
-    mediumCount: 2,
-    lowCount: 1,
-    findings: [
-      {
-        id: 'REV-101',
-        title: 'Missing Circuit Breaker on External Vector API Calls',
-        severity: 'High',
-        category: 'Resilience & Latency',
-        location: 'ChatController.java:L54',
-        description: 'Direct synchronous REST call to embedding service lacks Resilience4j circuit breaker fallback timeout.',
-        impact: 'External API slowdown will block Spring Boot web thread pool and crash active web sockets.',
-        fixCode: `// Before:\nResponseEntity<EmbeddingRes> res = restTemplate.postForEntity(url, req, EmbeddingRes.class);\n\n// Suggested Fix:\n@CircuitBreaker(name = "embeddingApi", fallbackMethod = "fallbackEmbedding")\npublic EmbeddingRes getEmbedding(EmbeddingReq req) {\n    return restTemplate.postForEntity(url, req, EmbeddingRes.class).getBody();\n}`
-      },
-      {
-        id: 'REV-102',
-        title: 'Hardcoded JWT Secret Fallback in Dev Profile',
-        severity: 'High',
-        category: 'Security & Auth',
-        location: 'JwtTokenProvider.java:L28',
-        description: 'Fallback secret key "groundwork-secret-key-123" is present in application.properties.',
-        impact: 'Risk of token forging if environment variable JWT_SECRET is omitted in production deployments.',
-        fixCode: `// Before:\n@Value("\${jwt.secret:groundwork-secret-key-123}")\nprivate String secret;\n\n// Suggested Fix:\n@Value("\${jwt.secret}") // Strictly require environment variable injection\nprivate String secret;`
-      },
-      {
-        id: 'REV-103',
-        title: 'Unindexed Foreign Key on document_chunks.workspace_id',
-        severity: 'Medium',
-        category: 'Database & Indexing',
-        location: 'V1__init_schema.sql:L42',
-        description: 'pgvector table document_chunks lacks B-tree index on workspace_id column.',
-        impact: 'Workspace isolation filtering degrades from O(log N) index scan to sequential table scan.',
-        fixCode: `CREATE INDEX IF NOT EXISTS idx_chunks_workspace_id ON document_chunks (workspace_id);`
-      },
-      {
-        id: 'REV-104',
-        title: 'Missing Cache Control Header on Document Upload Endpoint',
-        severity: 'Low',
-        category: 'API Standards',
-        location: 'DocumentUploadController.java:L50',
-        description: 'API response does not emit "Cache-Control: no-store" header on upload confirmation.',
-        impact: 'Potential client browser caching of temporary upload metadata.',
-        fixCode: `response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");`
-      }
-    ]
-  };
-}
-
 function renderReviewDashboard(data: any) {
   if (!reviewResults) return;
 
@@ -1146,32 +1124,32 @@ function renderReviewDashboard(data: any) {
       <div class="bg-gradient-to-tr from-slate-900 to-slate-950 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between md:col-span-2">
         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">WORKSPACE COMPLIANCE HEALTH</span>
         <div class="flex items-baseline gap-3 my-2">
-          <span class="text-4xl font-extrabold text-emerald-400">${data.healthScore || 88}</span>
-          <span class="text-sm font-bold text-emerald-300 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">GRADE ${data.grade || 'A-'}</span>
+          <span class="text-4xl font-extrabold text-emerald-400">${data.healthScore ?? 0}</span>
+          <span class="text-sm font-bold text-emerald-300 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">GRADE ${escapeHtml(String(data.grade ?? 'N/A'))}</span>
         </div>
-        <span class="text-[11px] text-slate-400">PASSED 18 / 23 Enterprise Architecture Guidelines</span>
+        <span class="text-[11px] text-slate-400">Automated result; validate findings manually before approval.</span>
       </div>
 
       <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col justify-center gap-1">
         <span class="text-[10px] font-bold text-rose-400 uppercase">🔴 CRITICAL</span>
-        <span class="text-3xl font-extrabold text-rose-400">${data.criticalCount || 0}</span>
+        <span class="text-3xl font-extrabold text-rose-400">${data.criticalCount ?? 0}</span>
       </div>
 
       <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col justify-center gap-1">
         <span class="text-[10px] font-bold text-amber-400 uppercase">🟠 HIGH</span>
-        <span class="text-3xl font-extrabold text-amber-400">${data.highCount || 2}</span>
+        <span class="text-3xl font-extrabold text-amber-400">${data.highCount ?? 0}</span>
       </div>
 
       <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex flex-col justify-center gap-1">
         <span class="text-[10px] font-bold text-cyan-400 uppercase">🔵 MEDIUM / LOW</span>
-        <span class="text-3xl font-extrabold text-cyan-400">${(data.mediumCount || 2) + (data.lowCount || 1)}</span>
+        <span class="text-3xl font-extrabold text-cyan-400">${(data.mediumCount ?? 0) + (data.lowCount ?? 0)}</span>
       </div>
     </div>
 
     <!-- Findings Card List -->
     <div class="flex flex-col gap-4">
       <h4 class="text-sm font-bold text-white flex items-center justify-between">
-        <span>Detailed Review Findings (${data.findings?.length || 4})</span>
+        <span>Detailed Review Findings (${data.findings?.length ?? 0})</span>
         <span class="text-[10px] font-mono text-slate-500">Sorted by Severity</span>
       </h4>
 
@@ -1184,17 +1162,17 @@ function renderReviewDashboard(data: any) {
           <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col gap-3 shadow-lg hover:border-slate-750 transition-all">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${sevColor}">${f.severity}</span>
-                <span class="text-xs font-mono text-indigo-400 font-semibold">${f.id}</span>
-                <span class="text-xs text-slate-400">| ${f.category}</span>
+                <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${sevColor}">${escapeHtml(String(f.severity ?? ''))}</span>
+                <span class="text-xs font-mono text-indigo-400 font-semibold">${escapeHtml(String(f.id ?? ''))}</span>
+                <span class="text-xs text-slate-400">| ${escapeHtml(String(f.category ?? ''))}</span>
               </div>
-              <span class="text-[11px] font-mono text-slate-500">📍 ${f.location}</span>
+              <span class="text-[11px] font-mono text-slate-500">📍 ${escapeHtml(String(f.location ?? ''))}</span>
             </div>
 
-            <h5 class="text-sm font-bold text-white">${f.title}</h5>
-            <p class="text-xs text-slate-300 leading-relaxed">${f.description}</p>
+            <h5 class="text-sm font-bold text-white">${escapeHtml(String(f.title ?? ''))}</h5>
+            <p class="text-xs text-slate-300 leading-relaxed">${escapeHtml(String(f.description ?? ''))}</p>
             <div class="text-xs text-amber-300/90 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
-              ⚡ <strong>Impact:</strong> ${f.impact}
+              ⚡ <strong>Impact:</strong> ${escapeHtml(String(f.impact ?? ''))}
             </div>
 
             ${f.fixCode ? `
@@ -1203,7 +1181,7 @@ function renderReviewDashboard(data: any) {
                   <span>SUGGESTED REFACTOR FIX</span>
                   <button class="copy-fix-btn hover:text-white font-bold text-indigo-400" data-code="${encodeURIComponent(f.fixCode)}">Copy Fix</button>
                 </div>
-                <pre class="font-mono text-[11px] text-emerald-300 whitespace-pre-wrap overflow-x-auto leading-relaxed">${f.fixCode}</pre>
+                <pre class="font-mono text-[11px] text-emerald-300 whitespace-pre-wrap overflow-x-auto leading-relaxed">${escapeHtml(String(f.fixCode))}</pre>
               </div>
             ` : ''}
           </div>
@@ -1276,17 +1254,20 @@ async function renderKnowledgeGraph() {
   const height = container ? container.clientHeight : 600;
 
   try {
-    let graphData: { nodes: GraphNode[]; links: GraphLink[] };
-    try {
-      const res = await fetch('http://localhost:8080/api/graph');
-      if (res.ok) {
-        graphData = await res.json();
-      } else {
-        graphData = generateSampleGraphData();
-      }
-    } catch (e) {
-      graphData = generateSampleGraphData();
-    }
+    const raw = await api.graph(activeWorkspace);
+    const graphData: { nodes: GraphNode[]; links: GraphLink[] } = {
+      nodes: raw.entities.map(entity => ({
+        id: entity.id,
+        label: entity.name,
+        type: mapGraphType(entity.entityType),
+        properties: entity.description ? { description: entity.description } : undefined
+      })),
+      links: raw.relationships.map(relationship => ({
+        source: relationship.sourceEntityId,
+        target: relationship.targetEntityId,
+        relationship: relationship.relationshipType
+      }))
+    };
 
     // Filter nodes if applicable
     let filteredNodes = graphData.nodes;
@@ -1484,9 +1465,9 @@ function openNodeDrawer(node: GraphNode, allLinks: GraphLink[]) {
     drawerNodeBody.innerHTML = `
       <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
         <div class="text-[10px] font-bold text-slate-400 uppercase">NODE METADATA</div>
-        <div class="text-xs text-slate-200">ID: <span class="font-mono text-indigo-300">${node.id}</span></div>
-        <div class="text-xs text-slate-200">Category: <span class="font-bold text-cyan-300">${node.type}</span></div>
-        ${node.docSource ? `<div class="text-xs text-slate-400">Source: ${node.docSource}</div>` : ''}
+        <div class="text-xs text-slate-200">ID: <span class="font-mono text-indigo-300">${escapeHtml(node.id)}</span></div>
+        <div class="text-xs text-slate-200">Category: <span class="font-bold text-cyan-300">${escapeHtml(node.type)}</span></div>
+        ${node.docSource ? `<div class="text-xs text-slate-400">Source: ${escapeHtml(node.docSource)}</div>` : ''}
       </div>
 
       <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
@@ -1497,9 +1478,9 @@ function openNodeDrawer(node: GraphNode, allLinks: GraphLink[]) {
             const tgtLabel = typeof l.target === 'object' ? (l.target as any).label : l.target;
             return `
               <div class="text-[11px] bg-slate-900 p-2 rounded-lg border border-slate-800 text-slate-300 flex items-center justify-between">
-                <span>${srcLabel}</span>
-                <span class="font-mono text-indigo-400 text-[9px] px-1 bg-indigo-500/10 rounded">${l.relationship}</span>
-                <span>${tgtLabel}</span>
+                <span>${escapeHtml(String(srcLabel))}</span>
+                <span class="font-mono text-indigo-400 text-[9px] px-1 bg-indigo-500/10 rounded">${escapeHtml(l.relationship)}</span>
+                <span>${escapeHtml(String(tgtLabel))}</span>
               </div>
             `;
           }).join('')}
@@ -1552,14 +1533,15 @@ function initTheme() {
 // -------------------------------------------------------------
 // APPLICATION INITIALIZATION
 // -------------------------------------------------------------
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
+  initAuth();
   initTabs();
-  initWorkspace();
+  await initWorkspace();
   initChat();
   initIntelligenceView();
   initCompareView();
   initReviewView();
   initGraphView();
-  fetchCorpusDocs();
+  await fetchCorpusDocs();
 });

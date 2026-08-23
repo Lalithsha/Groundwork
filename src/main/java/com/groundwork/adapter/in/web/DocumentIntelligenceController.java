@@ -3,6 +3,7 @@ package com.groundwork.adapter.in.web;
 import com.groundwork.application.DocumentRepository;
 import com.groundwork.application.KnowledgeArtifactRepository;
 import com.groundwork.application.StructuredExtractionService;
+import com.groundwork.application.WorkspaceAccessService;
 import com.groundwork.domain.model.DocumentChunk;
 import com.groundwork.domain.model.KnowledgeArtifact;
 import org.springframework.http.HttpStatus;
@@ -13,7 +14,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/artifacts")
 public class DocumentIntelligenceController {
@@ -21,14 +21,16 @@ public class DocumentIntelligenceController {
     private final KnowledgeArtifactRepository artifactRepository;
     private final DocumentRepository documentRepository;
     private final StructuredExtractionService extractionService;
+    private final WorkspaceAccessService access;
 
     public DocumentIntelligenceController(
             KnowledgeArtifactRepository artifactRepository,
             DocumentRepository documentRepository,
-            StructuredExtractionService extractionService) {
+            StructuredExtractionService extractionService, WorkspaceAccessService access) {
         this.artifactRepository = artifactRepository;
         this.documentRepository = documentRepository;
         this.extractionService = extractionService;
+        this.access = access;
     }
 
     public record ExtractArtifactRequest(
@@ -40,6 +42,7 @@ public class DocumentIntelligenceController {
 
     @PostMapping("/extract")
     public ResponseEntity<KnowledgeArtifact> extractArtifact(@RequestBody ExtractArtifactRequest request) {
+        access.requireEditor(request.workspaceId());
         String type = request.artifactType() != null && !request.artifactType().isBlank()
                 ? request.artifactType()
                 : "brief";
@@ -48,7 +51,7 @@ public class DocumentIntelligenceController {
         String title = request.documentTitle();
 
         if ((textContent == null || textContent.isBlank()) && title != null && !title.isBlank()) {
-            List<DocumentChunk> chunks = documentRepository.findByTitle(title);
+            List<DocumentChunk> chunks = documentRepository.findByTitle(title, request.workspaceId());
             if (!chunks.isEmpty()) {
                 textContent = chunks.stream().map(DocumentChunk::content).collect(Collectors.joining("\n\n"));
             }
@@ -76,6 +79,7 @@ public class DocumentIntelligenceController {
 
     @GetMapping
     public ResponseEntity<List<KnowledgeArtifact>> getArtifacts(@RequestParam(required = false) UUID workspaceId) {
+        access.requireViewer(workspaceId);
         if (workspaceId != null) {
             return ResponseEntity.ok(artifactRepository.findByWorkspaceId(workspaceId));
         }
@@ -84,13 +88,17 @@ public class DocumentIntelligenceController {
 
     @GetMapping("/{id}")
     public ResponseEntity<KnowledgeArtifact> getArtifactById(@PathVariable UUID id) {
-        return artifactRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        var artifact = artifactRepository.findById(id);
+        if (artifact.isEmpty()) return ResponseEntity.notFound().build();
+        access.requireViewer(artifact.get().workspaceId());
+        return ResponseEntity.ok(artifact.get());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteArtifact(@PathVariable UUID id) {
+        var artifact = artifactRepository.findById(id);
+        if (artifact.isEmpty()) return ResponseEntity.notFound().build();
+        access.requireEditor(artifact.get().workspaceId());
         boolean deleted = artifactRepository.deleteById(id);
         if (deleted) {
             return ResponseEntity.noContent().build();

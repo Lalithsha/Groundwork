@@ -8,7 +8,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -18,20 +18,15 @@ spring:
       port: ${REDIS_PORT:6380}
   cache:
     type: redis
-  ai:
-    retry:
-      max-attempts: 1
-      enabled: false
-    openai:
-      api-key: ${GEMINI_API_KEY:${OPENAI_API_KEY:demo_key}}
-      base-url: ${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}
-      chat:
-        options:
-          model: ${AI_MODEL:gemini-1.5-flash}
-          temperature: 0.0
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
 
 server:
   port: 8080
+  error:
+    include-message: never
 
 management:
   endpoints:
@@ -40,7 +35,7 @@ management:
         include: health,metrics,prometheus,info
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
 
 resilience4j:
   circuitbreaker:
@@ -52,11 +47,46 @@ resilience4j:
         permitted-number-of-calls-in-half-open-state: 3
 
 groundwork:
+  billing:
+    enabled: ${BILLING_ENABLED:false}
+  security:
+    enabled: ${SECURITY_ENABLED:false}
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+  seed:
+    enabled: ${SEED_DEMO_DATA:false}
+  ingestion:
+    max-file-bytes: ${MAX_FILE_BYTES:20971520}
+    max-pdf-pages: ${MAX_PDF_PAGES:500}
+    chunk-target-tokens: ${CHUNK_TARGET_TOKENS:500}
+    chunk-overlap-tokens: ${CHUNK_OVERLAP_TOKENS:60}
+    poll-delay-ms: ${INGESTION_POLL_DELAY_MS:1000}
+    stale-after-seconds: ${INGESTION_STALE_AFTER_SECONDS:300}
+  reindex:
+    poll-delay-ms: ${REINDEX_POLL_DELAY_MS:2000}
+    max-attempts: ${REINDEX_MAX_ATTEMPTS:3}
+    stale-after-seconds: ${REINDEX_STALE_AFTER_SECONDS:900}
+  embedding:
+    provider: ${EMBEDDING_PROVIDER:local}
+    base-url: ${EMBEDDING_BASE_URL:${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}}
+    api-key: ${EMBEDDING_API_KEY:${GEMINI_API_KEY:${OPENAI_API_KEY:}}}
+    model: ${EMBEDDING_MODEL:gemini-embedding-001}
+    dimensions: ${EMBEDDING_DIMENSIONS:1536}
+  chat:
+    base-url: ${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}
+    api-key: ${GEMINI_API_KEY:${OPENAI_API_KEY:}}
+    model: ${AI_MODEL:gemini-1.5-flash}
+  ai:
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:60}
   hookshot:
     base-url: ${HOOKSHOT_BASE_URL:http://localhost:8000}
   cohere:
-    api-key: ${COHERE_API_KEY:demo_cohere_key}
+    api-key: ${COHERE_API_KEY:}
+    model: ${COHERE_MODEL:rerank-english-v3.0}
+    base-url: ${COHERE_BASE_URL:https://api.cohere.com/v1/rerank}
+    timeout-seconds: ${COHERE_TIMEOUT_SECONDS:5}
   jwt:
     secret: ${JWT_SIGNING_SECRET:supersecretkeyforgroundworkjwttokengeneration12345}
     expiration-ms: 900000
     refresh-expiration-ms: 604800000
+    issuer: ${JWT_ISSUER:groundwork}
+    audience: ${JWT_AUDIENCE:groundwork-api}

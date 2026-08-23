@@ -1,74 +1,86 @@
 package com.groundwork.application;
 
 import com.groundwork.adapter.out.ai.CohereRerankAdapter;
+import com.groundwork.application.port.out.EmbeddingPort;
 import com.groundwork.domain.model.DocumentChunk;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class RetrievalService {
-
     private static final int RRF_K = 60;
 
-    private final DocumentRepository documentRepository;
-    private final CohereRerankAdapter rerankAdapter;
-    private final Counter hitCounter;
+    private final DocumentRepository documents;
+    private final CohereRerankAdapter reranker;
+    private final EmbeddingPort embeddings;
     private final Counter missCounter;
 
-    public RetrievalService(DocumentRepository documentRepository, CohereRerankAdapter rerankAdapter, MeterRegistry meterRegistry) {
-        this.documentRepository = documentRepository;
-        this.rerankAdapter = rerankAdapter;
-        this.hitCounter = meterRegistry.counter("cache.retrieval.hits");
-        this.missCounter = meterRegistry.counter("cache.retrieval.misses");
+    public RetrievalService(DocumentRepository documents, CohereRerankAdapter reranker,
+            EmbeddingPort embeddings, MeterRegistry meterRegistry) {
+        this.documents = documents;
+        this.reranker = reranker;
+        this.embeddings = embeddings;
+        this.missCounter = meterRegistry.counter("groundwork.retrieval.cache.misses");
     }
 
     public List<DocumentChunk> retrieve(String query, String mode, int limit) {
-        return retrieve(query, mode, null, limit);
+        return retrieve(query, mode, null, null, limit);
     }
 
-    @Cacheable(value = "retrieval", key = "#query.hashCode() + ':' + #mode + ':' + (#docFilter != null ? #docFilter : 'all')")
-    public List<DocumentChunk> retrieve(String query, String mode, String docFilter, int limit) {
+    public List<DocumentChunk> retrieve(String query, String mode, String documentFilter, int limit) {
+        return retrieve(query, mode, null, documentFilter, limit);
+    }
+
+    @Cacheable(value = "retrieval", key = "T(com.groundwork.application.Hashing).sha256(#query) + ':' + #mode + ':' + " +
+        "(#workspaceId != null ? #workspaceId : 'all') + ':' + " +
+        "(#documentFilter != null ? #documentFilter : 'all') + ':' + #limit")
+    public List<DocumentChunk> retrieve(String query, String mode, UUID workspaceId,
+            String documentFilter, int limit) {
+        if (query == null || query.isBlank()) return List.of();
         missCounter.increment();
-        if ("naive".equalsIgnoreCase(mode)) {
-            return documentRepository.searchVectorOnly(query, docFilter, limit);
+        double[] queryEmbedding = embeddings.embed(query);
+        if ("naive".equalsIgnoreCase(mode) || "vector".equalsIgnoreCase(mode)) {
+            return documents.searchVector(queryEmbedding, workspaceId, documentFilter, limit);
         }
 
-        // Hybrid mode: Fetch candidates from both Vector search and Full-Text search
-        List<DocumentChunk> vectorResults = documentRepository.searchVectorOnly(query, docFilter, 20);
-        List<DocumentChunk> keywordResults = documentRepository.searchKeywordOnly(query, docFilter, 20);
-
-        // Reciprocal Rank Fusion (RRF)
-        Map<UUID, Double> rrfScores = new HashMap<>();
-        Map<UUID, DocumentChunk> docMap = new HashMap<>();
-
-        accumulateRrfScores(vectorResults, rrfScores, docMap);
-        accumulateRrfScores(keywordResults, rrfScores, docMap);
-
-        List<DocumentChunk> merged = docMap.entrySet().stream()
-            .map(entry -> {
-                DocumentChunk orig = entry.getValue();
-                double rrfScore = rrfScores.get(entry.getKey());
-                return new DocumentChunk(orig.id(), orig.title(), orig.content(), orig.sourceType(), orig.contentHash(), rrfScore);
-            })
-            .sorted(Comparator.comparingDouble(DocumentChunk::score).reversed())
-            .limit(10)
-            .collect(Collectors.toList());
-
-        // Reranking step via Cohere API adapter
-        return rerankAdapter.rerank(query, merged, limit);
+        List<DocumentChunk> vector = documents.searchVector(queryEmbedding, workspaceId, documentFilter, 20);
+        List<DocumentChunk> keyword = documents.searchKeyword(query, workspaceId, documentFilter, 20);
+        List<DocumentChunk> fused = fuse(vector, keyword).stream().limit(10).toList();
+        if ("hybrid".equalsIgnoreCase(mode)) return fused.stream().limit(limit).toList();
+        return reranker.rerank(query, fused, limit);
     }
 
-    private void accumulateRrfScores(List<DocumentChunk> list, Map<UUID, Double> scores, Map<UUID, DocumentChunk> docMap) {
-        for (int rank = 0; rank < list.size(); rank++) {
-            DocumentChunk doc = list.get(rank);
-            docMap.putIfAbsent(doc.id(), doc);
-            double currentScore = scores.getOrDefault(doc.id(), 0.0);
-            scores.put(doc.id(), currentScore + (1.0 / (RRF_K + rank + 1)));
+    List<DocumentChunk> fuse(List<DocumentChunk> vector, List<DocumentChunk> keyword) {
+        Map<UUID, Double> scores = new HashMap<>();
+        Map<UUID, DocumentChunk> chunks = new HashMap<>();
+        accumulate(vector, scores, chunks);
+        accumulate(keyword, scores, chunks);
+        return chunks.entrySet().stream()
+            .map(entry -> withScore(entry.getValue(), scores.get(entry.getKey())))
+            .sorted(Comparator.comparingDouble(DocumentChunk::score).reversed())
+            .toList();
+    }
+
+    private void accumulate(List<DocumentChunk> ranked, Map<UUID, Double> scores,
+            Map<UUID, DocumentChunk> chunks) {
+        for (int rank = 0; rank < ranked.size(); rank++) {
+            DocumentChunk chunk = ranked.get(rank);
+            chunks.putIfAbsent(chunk.id(), chunk);
+            scores.merge(chunk.id(), 1.0 / (RRF_K + rank + 1), Double::sum);
         }
+    }
+
+    private DocumentChunk withScore(DocumentChunk chunk, double score) {
+        return new DocumentChunk(chunk.id(), chunk.documentId(), chunk.title(), chunk.content(),
+            chunk.sourceType(), chunk.contentHash(), score, chunk.chunkIndex(),
+            chunk.sectionTitle(), chunk.pageNumber());
     }
 }

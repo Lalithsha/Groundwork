@@ -51,6 +51,13 @@ public class KnowledgeGraphRepository {
     }
 
     public GraphRelationship saveRelationship(UUID workspaceId, UUID sourceEntityId, UUID targetEntityId, String relationshipType, String description) {
+        Integer entityCount = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM graph_entities
+            WHERE id IN (?, ?) AND workspace_id IS NOT DISTINCT FROM CAST(? AS uuid)
+            """, Integer.class, sourceEntityId, targetEntityId, workspaceId);
+        if (entityCount == null || entityCount != 2) {
+            throw new IllegalArgumentException("Both graph entities must belong to the selected workspace");
+        }
         UUID id = UUID.randomUUID();
         Instant now = Instant.now();
         String sql = """

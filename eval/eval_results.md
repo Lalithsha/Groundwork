@@ -1,14 +1,7 @@
-# Groundwork RAGAS Evaluation Results
+# Evaluation status
 
-Evaluation run under deterministic conditions (temperature = 0.0) comparing `naive` vector search against `hybrid_rerank` (Vector + Postgres FTS + RRF + Cohere Reranker).
+No verified quality or latency benchmark is currently claimed.
 
-| Metric | Naive Mode (Vector Only) | Hybrid Mode (RRF + Rerank) | Delta |
-|---|---|---|---|
-| **Faithfulness** | 0.78 | **0.95** | +0.17 |
-| **Answer Relevancy** | 0.82 | **0.96** | +0.14 |
-| **Context Precision** | 0.65 | **0.91** | +0.26 |
-| **Context Recall** | 0.70 | **0.93** | +0.23 |
+Run `run_eval.py` against the release configuration. The runner records the dataset version, timestamp, workspace, per-case answers, expected-term recall, citation coverage, and observed request latency for both retrieval modes. Generated JSON belongs under `eval/reports/` and should be reviewed before it is used in release claims.
 
-### Key Observations
-1. **Keyword Overlap:** Naive vector search failed on exact query tokens like exact API endpoint names or error codes, whereas Postgres FTS picked them up cleanly.
-2. **Context Precision:** RRF fusion dampened out-of-domain outliers, raising context precision by +0.26.
+Expected-term recall is a deterministic smoke metric, not a substitute for human review or RAGAS-style faithfulness evaluation. Provider model/version, embedding model, reranker state, hardware, corpus, and commit SHA should accompany any published benchmark.

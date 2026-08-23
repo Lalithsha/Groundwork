@@ -1,0 +1,30 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Groundwork API", "version": "2.0.0" },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" } },
+    "schemas": {
+      "ChatRequest": { "type": "object", "required": ["question", "workspaceId"], "properties": { "question": { "type": "string", "maxLength": 2000 }, "retrievalMode": { "type": "string", "enum": ["naive", "vector", "hybrid", "hybrid_rerank"] }, "documentFilter": { "type": "string" }, "workspaceId": { "type": "string", "format": "uuid" } } }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/api/auth/register": { "post": { "security": [], "responses": { "201": { "description": "Account and tokens created" }, "409": { "description": "Email exists" } } } },
+    "/api/auth/login": { "post": { "security": [], "responses": { "200": { "description": "Tokens issued" }, "401": { "description": "Invalid credentials" } } } },
+    "/api/auth/refresh": { "post": { "security": [], "responses": { "200": { "description": "Tokens rotated" }, "401": { "description": "Invalid refresh token" } } } },
+    "/api/workspaces": { "get": { "responses": { "200": { "description": "Accessible workspaces" } } }, "post": { "responses": { "201": { "description": "Workspace created" } } } },
+    "/api/workspaces/{workspaceId}/members": { "parameters": [{ "name": "workspaceId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "get": { "responses": { "200": { "description": "Workspace members" } } }, "put": { "responses": { "201": { "description": "Membership created or updated" } } } },
+    "/api/documents": { "get": { "responses": { "200": { "description": "Ready document titles" } } }, "delete": { "responses": { "200": { "description": "Document deleted" } } } },
+    "/api/documents/upload": { "post": { "responses": { "202": { "description": "Ingestion queued" }, "400": { "description": "Invalid upload" } } } },
+    "/api/documents/jobs/{jobId}": { "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "get": { "responses": { "200": { "description": "Ingestion job" } } }, "delete": { "responses": { "204": { "description": "Queued job cancelled" } } } },
+    "/api/chat": { "post": { "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatRequest" } } } }, "responses": { "200": { "description": "Grounded answer, contexts, citations, and evidence status" }, "400": { "description": "Invalid question" } } } },
+    "/api/chat/stream": { "get": { "responses": { "200": { "description": "Typed Server-Sent Events" } } } },
+    "/api/admin/reindex": { "post": { "responses": { "202": { "description": "Reindex queued" }, "409": { "description": "Active job exists" } } } },
+    "/api/artifacts": { "get": { "responses": { "200": { "description": "Knowledge artifacts" } } } },
+    "/api/artifacts/extract": { "post": { "responses": { "201": { "description": "Artifact extracted" } } } },
+    "/api/compare": { "post": { "responses": { "201": { "description": "Comparison created" } } } },
+    "/api/review": { "post": { "responses": { "201": { "description": "Review report created" } } } },
+    "/api/graph": { "get": { "responses": { "200": { "description": "Workspace graph" } } } },
+    "/api/graph/extract": { "post": { "responses": { "201": { "description": "Graph extracted" } } } }
+  }
+}

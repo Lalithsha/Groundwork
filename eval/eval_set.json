@@ -1,27 +1,26 @@
-[
-  {
-    "question": "What happens when a delivery exhausts all retry attempts?",
-    "ground_truth_answer": "It moves to the dead-letter queue (DLQ) rather than being lost.",
-    "ground_truth_context": "Webhook Delivery Retry & DLQ Policy"
-  },
-  {
-    "question": "How do I check the delivery status of a specific webhook payload?",
-    "ground_truth_answer": "Call GET /api/webhooks/{deliveryId}/status or ask the Groundwork assistant using the delivery ID.",
-    "ground_truth_context": "Delivery Status Lookup API"
-  },
-  {
-    "question": "What is the exponential backoff interval formula for webhook retries?",
-    "ground_truth_answer": "Initial backoff starts at 5 seconds, doubling per attempt up to 5 attempts.",
-    "ground_truth_context": "Webhook Delivery Retry & DLQ Policy"
-  },
-  {
-    "question": "What is HookShot's overall architecture pattern?",
-    "ground_truth_answer": "HookShot is an event-driven webhook gateway with DLQ support and exponential backoff retry semantics.",
-    "ground_truth_context": "HookShot Architecture & Webhook Overview"
-  },
-  {
-    "question": "What is the rate limit for free tier users?",
-    "ground_truth_answer": "Free tier users are rate limited to 20 requests per minute using Bucket4j token bucket algorithm.",
-    "ground_truth_context": "Support FAQ — Rate Limiting & Throttling"
-  }
-]
+{
+  "datasetVersion": "2026-08-23.1",
+  "fixture": "fixtures/groundwork_eval.md",
+  "cases": [
+    {
+      "id": "retry-exhaustion",
+      "question": "What happens after every delivery retry is exhausted?",
+      "expectedTerms": ["dead-letter", "DLQ", "five"]
+    },
+    {
+      "id": "retry-delay",
+      "question": "How does delivery retry delay work?",
+      "expectedTerms": ["5 seconds", "double", "five"]
+    },
+    {
+      "id": "delivery-status",
+      "question": "Which API checks one delivery's status?",
+      "expectedTerms": ["GET", "/api/webhooks/", "status"]
+    },
+    {
+      "id": "free-rate-limit",
+      "question": "What is the free-tier API rate limit?",
+      "expectedTerms": ["20", "requests per minute"]
+    }
+  ]
+}

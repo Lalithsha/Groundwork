@@ -3,6 +3,7 @@ package com.groundwork.adapter.in.web;
 import com.groundwork.application.ComparisonRepository;
 import com.groundwork.application.DocumentRepository;
 import com.groundwork.application.StructuredExtractionService;
+import com.groundwork.application.WorkspaceAccessService;
 import com.groundwork.domain.model.DocumentChunk;
 import com.groundwork.domain.model.DocumentComparison;
 import org.springframework.http.HttpStatus;
@@ -13,7 +14,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/compare")
 public class DocumentComparisonController {
@@ -21,14 +21,16 @@ public class DocumentComparisonController {
     private final ComparisonRepository comparisonRepository;
     private final DocumentRepository documentRepository;
     private final StructuredExtractionService extractionService;
+    private final WorkspaceAccessService access;
 
     public DocumentComparisonController(
             ComparisonRepository comparisonRepository,
             DocumentRepository documentRepository,
-            StructuredExtractionService extractionService) {
+            StructuredExtractionService extractionService, WorkspaceAccessService access) {
         this.comparisonRepository = comparisonRepository;
         this.documentRepository = documentRepository;
         this.extractionService = extractionService;
+        this.access = access;
     }
 
     public record CompareRequest(
@@ -41,12 +43,13 @@ public class DocumentComparisonController {
 
     @PostMapping
     public ResponseEntity<DocumentComparison> compareDocuments(@RequestBody CompareRequest request) {
+        access.requireEditor(request.workspaceId());
         String titleA = request.docTitleA() != null ? request.docTitleA() : "Document A";
         String titleB = request.docTitleB() != null ? request.docTitleB() : "Document B";
 
         String contentA = request.textA();
         if ((contentA == null || contentA.isBlank()) && request.docTitleA() != null) {
-            List<DocumentChunk> chunksA = documentRepository.findByTitle(request.docTitleA());
+            List<DocumentChunk> chunksA = documentRepository.findByTitle(request.docTitleA(), request.workspaceId());
             if (!chunksA.isEmpty()) {
                 contentA = chunksA.stream().map(DocumentChunk::content).collect(Collectors.joining("\n\n"));
             }
@@ -54,7 +57,7 @@ public class DocumentComparisonController {
 
         String contentB = request.textB();
         if ((contentB == null || contentB.isBlank()) && request.docTitleB() != null) {
-            List<DocumentChunk> chunksB = documentRepository.findByTitle(request.docTitleB());
+            List<DocumentChunk> chunksB = documentRepository.findByTitle(request.docTitleB(), request.workspaceId());
             if (!chunksB.isEmpty()) {
                 contentB = chunksB.stream().map(DocumentChunk::content).collect(Collectors.joining("\n\n"));
             }
@@ -80,6 +83,7 @@ public class DocumentComparisonController {
 
     @GetMapping
     public ResponseEntity<List<DocumentComparison>> getComparisons(@RequestParam(required = false) UUID workspaceId) {
+        access.requireViewer(workspaceId);
         if (workspaceId != null) {
             return ResponseEntity.ok(comparisonRepository.findByWorkspaceId(workspaceId));
         }
@@ -88,8 +92,9 @@ public class DocumentComparisonController {
 
     @GetMapping("/{id}")
     public ResponseEntity<DocumentComparison> getComparisonById(@PathVariable UUID id) {
-        return comparisonRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        var comparison = comparisonRepository.findById(id);
+        if (comparison.isEmpty()) return ResponseEntity.notFound().build();
+        access.requireViewer(comparison.get().workspaceId());
+        return ResponseEntity.ok(comparison.get());
     }
 }

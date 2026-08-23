@@ -19,6 +19,12 @@ public class JwtUtils {
     @Value("${groundwork.jwt.expiration-ms:900000}")
     private long jwtExpirationMs;
 
+    @Value("${groundwork.jwt.issuer:groundwork}")
+    private String issuer;
+
+    @Value("${groundwork.jwt.audience:groundwork-api}")
+    private String audience;
+
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
@@ -27,6 +33,8 @@ public class JwtUtils {
         return Jwts.builder()
             .subject(email)
             .claim("role", role)
+            .issuer(issuer)
+            .audience().add(audience).and()
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
             .signWith(getSigningKey())
@@ -43,8 +51,8 @@ public class JwtUtils {
 
     public boolean validateToken(String token) {
         try {
-            parseClaims(token);
-            return true;
+            Claims claims = parseClaims(token);
+            return issuer.equals(claims.getIssuer()) && claims.getAudience() != null && claims.getAudience().contains(audience);
         } catch (Exception e) {
             return false;
         }

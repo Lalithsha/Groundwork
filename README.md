@@ -1,143 +1,96 @@
-# Groundwork v2 — Enterprise AI Document Intelligence & Knowledge Platform
+# Groundwork
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/Lalithsha/Groundwork/ci.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/Lalithsha/Groundwork/actions)
-[![Java](https://img.shields.io/badge/Java-17%2B-orange?style=for-the-badge&logo=openjdk)](https://www.oracle.com/java/)
-[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.3-green?style=for-the-badge&logo=springboot)](https://spring.io/projects/spring-boot)
-[![Spring AI](https://img.shields.io/badge/Spring_AI-0.8.1-blue?style=for-the-badge&logo=spring)](https://spring.io/projects/spring-ai)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16_with_pgvector-336791?style=for-the-badge&logo=postgresql)](https://github.com/pgvector/pgvector)
-[![Redis](https://img.shields.io/badge/Redis-7.0--alpine-dc382d?style=for-the-badge&logo=redis)](https://redis.io/)
-[![TailwindCSS v3](https://img.shields.io/badge/TailwindCSS-v3.4-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
-[![D3.js](https://img.shields.io/badge/D3.js-v7.9-f97316?style=for-the-badge&logo=d3.js)](https://d3js.org/)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ed?style=for-the-badge&logo=docker)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge)](LICENSE)
+Groundwork is a workspace-scoped document intelligence application. It ingests PDF, Markdown, and text files, creates durable chunk embeddings, performs PostgreSQL full-text plus pgvector retrieval, and answers questions with stable source citations. It also exposes structured extraction, document comparison, review, and knowledge-graph workflows through a TypeScript web client.
 
-**Groundwork v2** is an enterprise-grade, distributed **AI Document Intelligence & Knowledge Platform**. Moving beyond basic PDF chat, Groundwork v2 offers **workspace isolation**, **structured document artifact extraction**, **multi-document diff & spec comparison**, **AI senior engineer architectural reviewing**, **D3 force-directed knowledge graphs**, and **hybrid retrieval with cross-encoder reranking**.
+## Current capabilities
 
-> 📖 **Complete Product & Technical Handbook:** For exhaustive architectural diagrams, Flyway DDL schemas, REST API payloads, UI design system rules, and deployment guides, see [HANDBOOK.md](file:///Users/lalithsharma/My-Projects/Groundwork/HANDBOOK.md).
+- Durable PostgreSQL ingestion/reindex jobs with leases, retries, cancellation, progress, and crash recovery.
+- Token-aware chunking, configurable OpenAI-compatible embeddings, and a deterministic local test adapter.
+- Hybrid vector/full-text retrieval using reciprocal-rank fusion and optional Cohere reranking.
+- Grounded chat responses, insufficient-evidence refusal, document scoping, citations, and typed SSE events.
+- JWT access tokens, rotating refresh tokens, BCrypt passwords, workspace roles (`OWNER`, `ADMIN`, `EDITOR`, `VIEWER`), CORS controls, rate limiting, and mutation audit events.
+- PDF/TXT/Markdown validation and extraction with limits for file size and PDF page count.
+- Vite/TypeScript UI with authentication, workspace selection, upload progress, citations, comparisons, reviews, artifacts, and D3 graph rendering.
+- Flyway migrations, Prometheus/Actuator endpoints, CI, deterministic unit tests, and an opt-in database integration test.
 
----
+Billing is intentionally disabled. The old simulated payment implementation is not production-safe and cannot be enabled under the `prod` profile.
 
-## 🚀 What's New in Groundwork v2
+## Architecture
 
-* 🗂️ **Multi-Workspace Management (`/api/workspaces`):** Logical workspace isolation enabling teams to segment project documentation, compliance specs, and architecture decisions cleanly.
-* 📋 **Document Intelligence Artifact Extractor (`/api/artifacts`):** Automated extraction of structured JSON artifacts across 7 categories: *Functional & Non-Functional Requirements*, *API Specs*, *Risk Registers*, *Architecture Decisions (ADRs)*, *Assumptions*, and *Glossary Terms*.
-* ⚔️ **Multi-Document Comparison Studio (`/api/compare`):** Side-by-side spec comparison detecting 5 diff types (*Added*, *Removed*, *Modified*, *Breaking Changes*, *Ambiguous*), with automated risk scoring and AI synthesis.
-* 🔍 **AI Senior Engineer Reviewer & Gap Analysis (`/api/review`):** Architectural quality audits evaluating *Security*, *Scalability*, *Consistency*, *Contradictions*, and *Missing Requirements* with severity ratings (Critical 🔴, High 🟧, Medium 🟨, Low 🟦).
-* 🌐 **Interactive D3.js Force Knowledge Graph (`/api/graph`):** Dynamic 2D graph visualizer rendering entities, APIs, documents, and relationships (*USES*, *CALLS*, *DEPENDS_ON*, *IMPLEMENTS*) with node category filtering and node inspector drawer.
-* 🏷️ **Scoped `@` Document Mention Tagging:** Restrict RAG retrieval to specific uploaded documents by typing `@` in the chat prompt for pinpoint precision.
+The application uses ports and adapters for AI providers and keeps job state in PostgreSQL. Redis is an optimization for retrieval caching and distributed rate-limit counters; source documents, chunks, memberships, and job state remain in PostgreSQL.
 
----
-
-## 📐 System Architecture & Design
-
-Groundwork follows **Hexagonal Architecture (Ports and Adapters)** to isolate core domain logic from external LLM providers, search indexers, and web delivery layers.
-
-### 1. High-Level System Architecture
-
-```mermaid
-graph TD
-    User([Browser Client / CLI]) -->|HTTP / SSE Streaming| Frontend[Tailwind v3 + TypeScript + D3 UI]
-    Frontend -->|REST API / SSE| Gateway[Spring Security + JWT Auth Filter]
-    
-    subgraph Spring Boot Application Core
-        Gateway --> Interceptor[Bucket4j Rate Limiter Interceptor]
-        Interceptor --> WorkspaceCtrl[Workspace & Module Controllers]
-        WorkspaceCtrl --> ExtractionSvc[Structured Extraction Engine]
-        WorkspaceCtrl --> Guardrail[Prompt Injection Guardrail]
-        Guardrail --> RetrievalService[Retrieval Service]
-        
-        subgraph Hybrid Search Engine
-            RetrievalService -->|Vector Search 1536d| PgVector[(PostgreSQL + pgvector)]
-            RetrievalService -->|TSVector GIN Index| PgFTS[(PostgreSQL Full-Text Search)]
-            RetrievalService -->|RRF Fusion k=60| RRF[Reciprocal Rank Fusion Engine]
-            RRF -->|Rerank Candidates| Cohere[Cohere Rerank API Adapter]
-        end
-        
-        subgraph Tool & Function Calling
-            WorkspaceCtrl -->|Spring AI Function Calling| SupportTools[Support Tools Suite]
-            SupportTools -->|Resilience4j Circuit Breaker| ExternalAPI[Third-Party APIs]
-        end
-        
-        subgraph Distributed Cache & Lock Layer
-            RetrievalService <-->|10m Cache TTL| Redis[(Redis Cluster)]
-            WorkspaceCtrl <-->|Async Job Lock| DBIndex[(Postgres Partial Unique Index)]
-        end
-    end
-    
-    WorkspaceCtrl -->|Grounded System Prompt| LLM[Gemini 1.5 / OpenAI GPT-4o]
-    LLM -->|Streamed SSE Response| Frontend
+```text
+Browser -> nginx -> Spring Security/controllers -> application services
+                                            |-> PostgreSQL + pgvector
+                                            |-> Redis cache/rate counters
+                                            |-> OpenAI-compatible chat/embedding APIs
+                                            `-> optional Cohere reranker
 ```
 
----
+See [Architecture](docs/ARCHITECTURE.md), [Security](docs/SECURITY.md), [Runbook](docs/RUNBOOK.md), and the checked [OpenAPI contract](docs/openapi.json).
 
-## 🔥 Enterprise Core Features
+## Production-style local start
 
-### 1. Multi-Modal Hybrid Search Engine
-* **Dense Vector Search**: 1536-dimensional embeddings indexed with HNSW for semantic query understanding.
-* **Sparse Full-Text Search**: PostgreSQL `tsvector` with GIN indexing for exact technical identifier lookup (`ERR_403_SIGNATURE`, API paths).
-* **Reciprocal Rank Fusion (RRF)**: Merges vector and keyword candidate lists without score normalization bias:
-  $$\text{RRF}(d) = \sum_{m \in M} \frac{1}{k + r_m(d)} \quad (k = 60)$$
-* **Cohere Cross-Encoder Reranking**: Re-orders candidate chunks using Cohere's Rerank API for maximum precision.
+Requirements: Docker with Compose and live chat/embedding provider keys.
 
-### 2. Distributed Caching & Concurrency Control
-* **Redis Caching Layer**: 10-minute TTL for candidate retrieval lists, 30-day TTL for computed vector embeddings.
-* **DB-Level Distributed Lock**: Prevents concurrent async re-indexing jobs via partial unique index (`idx_single_active_job`), returning an instant **409 Conflict** response.
-
----
-
-## 📊 RAGAS Evaluation Benchmark Results
-
-| Retrieval Mode | Context Precision | Context Recall | Faithfulness | Answer Relevancy | Avg Latency (ms) |
-|---|---|---|---|---|---|
-| **Naive Vector Search** | 0.68 | 0.72 | 0.81 | 0.79 | 420 ms |
-| **Hybrid + RRF + Cohere Rerank** | **0.94** | **0.96** | **0.98** | **0.95** | **180 ms (Cached)** |
-
----
-
-## 🌐 Complete REST API Reference
-
-### 1. Workspace API
-* `GET /api/workspaces`: List all active workspaces.
-* `POST /api/workspaces`: Create a new workspace (`name`, `description`).
-* `DELETE /api/workspaces/{id}`: Delete workspace and associated documents.
-
-### 2. Chat & Assistant API
-* `POST /api/chat`: Send query with optional `@doc_name` tag and retrieval mode.
-* `GET /api/chat/stream`: Real-time Server-Sent Events (SSE) streaming tokens.
-
-### 3. Document Intelligence & Artifacts API
-* `POST /api/artifacts/extract?title=...`: Trigger structured JSON extraction.
-* `GET /api/artifacts`: List extracted requirements, APIs, risks, and decisions.
-
-### 4. Multi-Document Comparison API
-* `POST /api/compare`: Compare 2 documents (`docATitle`, `docBTitle`). Returns diff matrix & risk score.
-
-### 5. Knowledge Graph API
-* `POST /api/graph/build`: Extract entity & relationship nodes from workspace documents.
-* `GET /api/graph/{workspaceId}`: Get D3 node-link JSON network graph.
-
-### 6. AI Senior Reviewer API
-* `POST /api/review`: Execute architectural quality audit.
-* `GET /api/review/reports`: Fetch review findings sorted by severity.
-
----
-
-## 🛠️ Quickstart & Local Setup
-
-### 1. Run full stack with Docker Compose
 ```bash
-git clone git@github.com:Lalithsha/Groundwork.git
-cd Groundwork
+cp .env.example .env
+# Replace every placeholder in .env.
+docker compose config
 docker compose up --build -d
 ```
-Access the application UI at **http://localhost:5173** and the Spring Boot backend at **http://localhost:8080**.
 
-### 2. Run local dev script
+Open `http://localhost:8081`. The backend is also bound to localhost at `http://localhost:8080`; health is available at `/actuator/health`.
+
+Compose enables the `prod` profile. Startup fails closed if authentication is disabled, CORS is wildcarded, secrets are placeholders, local embeddings are selected, or billing is enabled.
+
+## Developer workflow
+
+Use Java 21, Maven, Node 20, PostgreSQL 16 with pgvector, and Redis 7.
+
 ```bash
-./dev.sh
+./mvnw test
+cd frontend && npm ci && npm run build
 ```
 
----
+Or run both deterministic checks:
 
-## 📝 License
-This project is licensed under the MIT License.
+```bash
+./scripts/verify.sh
+```
+
+The database integration test runs only when `RUN_DATABASE_INTEGRATION_TESTS=true`; CI supplies PostgreSQL and Redis services. Local embeddings are deterministic lexical vectors for development and tests, not a semantic production model.
+
+## Important configuration
+
+| Variable | Purpose |
+|---|---|
+| `SECURITY_ENABLED` | Require JWT authentication; mandatory in `prod`. |
+| `JWT_SIGNING_SECRET` | Unique signing secret, at least 48 characters in `prod`. |
+| `ALLOWED_ORIGINS` | Comma-separated browser origins; no wildcard in `prod`. |
+| `EMBEDDING_PROVIDER` | `local` for deterministic tests or `openai-compatible` for production. |
+| `EMBEDDING_API_KEY`, `EMBEDDING_BASE_URL`, `EMBEDDING_MODEL` | Embedding provider settings. |
+| `GEMINI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | Chat provider settings. |
+| `COHERE_API_KEY` | Optional reranking; RRF still works when absent. |
+
+All migrations are additive under `src/main/resources/db/migration`. Back up PostgreSQL before upgrading and follow the rollback guidance in the runbook.
+
+## Evaluation
+
+`eval/run_eval.py` uploads a versioned fixture, waits for ingestion, executes both retrieval modes, and writes a timestamped JSON report with answer-term recall and citation coverage. It requires a running stack and, for meaningful semantic answers, live providers. No benchmark score is claimed until a generated report is committed with its environment metadata.
+
+```bash
+python3 eval/run_eval.py --workspace-id <uuid> --token <jwt>
+```
+
+A k6 smoke/load scenario is available at `performance/k6-smoke.js`; its thresholds are release targets until a versioned report is generated in the deployment environment.
+
+## Project assessment
+
+- [Assessment](PROJECT_ASSESSMENT.md)
+- [Roadmap to 10/10](ROADMAP_TO_10.md)
+- [Implementation handbook](HANDBOOK.md)
+
+## License
+
+MIT

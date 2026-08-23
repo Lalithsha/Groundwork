@@ -1,39 +1,43 @@
 package com.groundwork.adapter.in.web;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.groundwork.application.DocumentRepository;
 import com.groundwork.application.KnowledgeGraphRepository;
 import com.groundwork.application.StructuredExtractionService;
+import com.groundwork.application.WorkspaceAccessService;
 import com.groundwork.domain.model.DocumentChunk;
 import com.groundwork.domain.model.GraphEntity;
 import com.groundwork.domain.model.GraphRelationship;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/graph")
 public class KnowledgeGraphController {
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeGraphController.class);
 
     private final KnowledgeGraphRepository graphRepository;
     private final DocumentRepository documentRepository;
     private final StructuredExtractionService extractionService;
     private final ObjectMapper objectMapper;
+    private final WorkspaceAccessService access;
 
     public KnowledgeGraphController(
             KnowledgeGraphRepository graphRepository,
             DocumentRepository documentRepository,
             StructuredExtractionService extractionService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper, WorkspaceAccessService access) {
         this.graphRepository = graphRepository;
         this.documentRepository = documentRepository;
         this.extractionService = extractionService;
         this.objectMapper = objectMapper;
+        this.access = access;
     }
 
     public record ExtractGraphRequest(
@@ -64,11 +68,12 @@ public class KnowledgeGraphController {
 
     @PostMapping("/extract")
     public ResponseEntity<GraphResponse> extractGraph(@RequestBody ExtractGraphRequest request) {
+        access.requireEditor(request.workspaceId());
         String textContent = request.rawText();
         String title = request.documentTitle();
 
         if ((textContent == null || textContent.isBlank()) && title != null && !title.isBlank()) {
-            List<DocumentChunk> chunks = documentRepository.findByTitle(title);
+            List<DocumentChunk> chunks = documentRepository.findByTitle(title, request.workspaceId());
             if (!chunks.isEmpty()) {
                 textContent = chunks.stream().map(DocumentChunk::content).collect(Collectors.joining("\n\n"));
             }
@@ -83,17 +88,17 @@ public class KnowledgeGraphController {
         List<GraphRelationship> savedRelationships = new ArrayList<>();
 
         try {
-            Map<String, Object> map = objectMapper.readValue(graphJson, new TypeReference<>() {});
-            List<Map<String, String>> entitiesList = (List<Map<String, String>>) map.get("entities");
-            List<Map<String, String>> relsList = (List<Map<String, String>>) map.get("relationships");
+            var graph = objectMapper.readTree(graphJson);
+            var entitiesList = graph.path("entities");
+            var relsList = graph.path("relationships");
 
             Map<String, GraphEntity> entityByName = new HashMap<>();
 
-            if (entitiesList != null) {
-                for (Map<String, String> e : entitiesList) {
-                    String name = e.get("name");
-                    String type = e.get("entityType");
-                    String desc = e.get("description");
+            if (entitiesList.isArray()) {
+                for (var entityNode : entitiesList) {
+                    String name = entityNode.path("name").asText(null);
+                    String type = entityNode.path("entityType").asText(null);
+                    String desc = entityNode.path("description").asText(null);
                     if (name != null && !name.isBlank()) {
                         GraphEntity entity = graphRepository.findEntityByName(name, request.workspaceId())
                             .orElseGet(() -> graphRepository.saveEntity(
@@ -108,12 +113,12 @@ public class KnowledgeGraphController {
                 }
             }
 
-            if (relsList != null) {
-                for (Map<String, String> r : relsList) {
-                    String srcName = r.get("source");
-                    String tgtName = r.get("target");
-                    String relType = r.get("relationshipType");
-                    String desc = r.get("description");
+            if (relsList.isArray()) {
+                for (var relationshipNode : relsList) {
+                    String srcName = relationshipNode.path("source").asText(null);
+                    String tgtName = relationshipNode.path("target").asText(null);
+                    String relType = relationshipNode.path("relationshipType").asText(null);
+                    String desc = relationshipNode.path("description").asText(null);
 
                     GraphEntity srcEntity = srcName != null ? entityByName.get(srcName.toLowerCase()) : null;
                     GraphEntity tgtEntity = tgtName != null ? entityByName.get(tgtName.toLowerCase()) : null;
@@ -131,7 +136,7 @@ public class KnowledgeGraphController {
                 }
             }
         } catch (Exception ex) {
-            System.err.println("Error parsing extracted graph JSON: " + ex.getMessage());
+            log.warn("Could not parse structured graph output: {}", ex.getMessage());
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(new GraphResponse(savedEntities, savedRelationships));
@@ -139,6 +144,7 @@ public class KnowledgeGraphController {
 
     @GetMapping
     public ResponseEntity<GraphResponse> getGraph(@RequestParam(required = false) UUID workspaceId) {
+        access.requireViewer(workspaceId);
         List<GraphEntity> entities = graphRepository.findEntitiesByWorkspace(workspaceId);
         List<GraphRelationship> relationships = graphRepository.findRelationshipsByWorkspace(workspaceId);
         return ResponseEntity.ok(new GraphResponse(entities, relationships));
@@ -146,6 +152,7 @@ public class KnowledgeGraphController {
 
     @PostMapping("/entities")
     public ResponseEntity<GraphEntity> createEntity(@RequestBody CreateEntityRequest request) {
+        access.requireEditor(request.workspaceId());
         if (request.name() == null || request.name().isBlank()) {
             return ResponseEntity.badRequest().build();
         }
@@ -160,6 +167,7 @@ public class KnowledgeGraphController {
 
     @PostMapping("/relationships")
     public ResponseEntity<GraphRelationship> createRelationship(@RequestBody CreateRelationshipRequest request) {
+        access.requireEditor(request.workspaceId());
         if (request.sourceEntityId() == null || request.targetEntityId() == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -175,6 +183,7 @@ public class KnowledgeGraphController {
 
     @DeleteMapping
     public ResponseEntity<Void> clearGraph(@RequestParam(required = false) UUID workspaceId) {
+        access.requireEditor(workspaceId);
         graphRepository.clearGraph(workspaceId);
         return ResponseEntity.noContent().build();
     }

@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body class="bg-[#09090b] text-zinc-100 font-sans h-screen overflow-hidden relative select-none antialiased">
@@ -19,6 +18,27 @@
 
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col gap-3 max-w-sm"></div>
+
+  <div id="authModal" class="fixed inset-0 bg-black/90 backdrop-blur-2xl z-[70] flex items-center justify-center p-6 hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <form id="authForm" class="glass-panel rounded-2xl w-full max-w-md p-7 flex flex-col gap-5 border border-zinc-800 shadow-2xl">
+      <div>
+        <div class="w-11 h-11 rounded-xl bg-white text-black flex items-center justify-center font-black text-lg mb-4">⚡</div>
+        <h2 id="authTitle" class="text-xl font-black text-white">Sign in to Groundwork</h2>
+        <p class="text-xs text-zinc-400 mt-1">Use your workspace account. New accounts can be created below.</p>
+      </div>
+      <label class="text-xs font-bold text-zinc-300">Email
+        <input id="authEmail" type="email" autocomplete="email" required class="mt-2 w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-zinc-500" />
+      </label>
+      <label class="text-xs font-bold text-zinc-300">Password
+        <input id="authPassword" type="password" autocomplete="current-password" minlength="12" maxlength="128" required class="mt-2 w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-zinc-500" />
+      </label>
+      <p id="authError" class="hidden text-xs text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3" role="alert"></p>
+      <div class="grid grid-cols-2 gap-3">
+        <button id="registerBtn" type="button" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 hover:bg-zinc-700">Create account</button>
+        <button id="loginBtn" type="submit" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200">Sign in</button>
+      </div>
+    </form>
+  </div>
 
   <!-- Confirmation Modal -->
   <div id="confirmModal" class="fixed inset-0 bg-black/85 backdrop-blur-2xl z-50 flex items-center justify-center p-6 hidden">
@@ -187,6 +207,7 @@
       <!-- Top Workspace Bar & Global Actions (High Contrast Vercel Style) -->
       <header class="px-8 py-4 border-b border-zinc-800/80 bg-[#121215]/80 backdrop-blur-2xl flex items-center justify-between shrink-0 relative z-20">
         <div class="flex items-center gap-3">
+          <button id="accountBtn" class="p-2 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all text-xs font-bold" title="Account">Account</button>
           <div class="flex flex-col">
             <div class="flex items-center gap-3">
               <h2 id="viewHeadingTitle" class="text-lg font-black text-white tracking-tight">Executive Knowledge Hub</h2>
@@ -233,29 +254,29 @@
             <div class="glass-card p-4 rounded-2xl flex flex-col gap-1 border-t-2 border-t-zinc-400">
               <span class="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">INDEXED CORPUS</span>
               <div class="flex items-baseline justify-between">
-                <span class="text-xl font-black text-white">10 Files</span>
-                <span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">100% Ready</span>
+                <span id="dashboardCorpusCount" class="text-xl font-black text-white">0 Files</span>
+                <span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Loaded</span>
               </div>
             </div>
             <div class="glass-card p-4 rounded-2xl flex flex-col gap-1 border-t-2 border-t-zinc-400">
               <span class="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">EXTRACTED ARTIFACTS</span>
               <div class="flex items-baseline justify-between">
-                <span class="text-xl font-black text-white">8 Specs</span>
+                <span id="dashboardArtifactCount" class="text-xl font-black text-white">0 Specs</span>
                 <span class="text-[10px] font-mono font-bold text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700/80">4 Categories</span>
               </div>
             </div>
             <div class="glass-card p-4 rounded-2xl flex flex-col gap-1 border-t-2 border-t-amber-500">
               <span class="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">DIFF STUDIO</span>
               <div class="flex items-baseline justify-between">
-                <span class="text-xl font-black text-white">84.5% Match</span>
-                <span class="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">1 Conflict</span>
+                <span class="text-xl font-black text-white">Not run</span>
+                <span class="text-[10px] font-mono font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">Awaiting comparison</span>
               </div>
             </div>
             <div class="glass-card p-4 rounded-2xl flex flex-col gap-1 border-t-2 border-t-emerald-500">
               <span class="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400">AI REVIEW AUDIT</span>
               <div class="flex items-baseline justify-between">
-                <span class="text-xl font-black text-white">Passed</span>
-                <span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">0 Vulnerabilities</span>
+                <span class="text-xl font-black text-white">Not run</span>
+                <span class="text-[10px] font-mono font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">Awaiting review</span>
               </div>
             </div>
           </div>

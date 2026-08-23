@@ -23,3 +23,4 @@ GROUNDWORK_QA_LOG.md
 eval/__pycache__/
 eval/.venv/
 eval/venv/
+eval/reports/
