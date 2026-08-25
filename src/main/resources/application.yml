@@ -79,13 +79,16 @@ groundwork:
     stale-after-seconds: ${REINDEX_STALE_AFTER_SECONDS:900}
   embedding:
     provider: ${EMBEDDING_PROVIDER:local}
+    protocol: ${EMBEDDING_PROTOCOL:openai-compatible}
     base-url: ${EMBEDDING_BASE_URL:${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}}
-    api-key: ${EMBEDDING_API_KEY:${GEMINI_API_KEY:${OPENAI_API_KEY:}}}
+    api-key: ${EMBEDDING_API_KEY:${GEMINI_API_KEY:}}
     model: ${EMBEDDING_MODEL:gemini-embedding-001}
     dimensions: ${EMBEDDING_DIMENSIONS:1536}
   chat:
+    provider: ${AI_PROVIDER:gemini}
+    protocol: ${AI_PROTOCOL:openai-compatible}
     base-url: ${AI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}
-    api-key: ${GEMINI_API_KEY:${OPENAI_API_KEY:}}
+    api-key: ${GEMINI_API_KEY:}
     model: ${AI_MODEL:gemini-1.5-flash}
   ai:
     timeout-seconds: ${AI_TIMEOUT_SECONDS:60}

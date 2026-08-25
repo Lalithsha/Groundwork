@@ -47,6 +47,8 @@ flowchart LR
 
 The backend is a modular Spring Boot monolith. PostgreSQL 16 with pgvector is the transactional source of truth; Redis accelerates caching and distributed limits. Ports isolate GitHub, Atlassian, chat, and embedding providers. Architecture rules are checked with ArchUnit.
 
+Gemini is the default remote AI provider for both chat generation and semantic embeddings. `openai-compatible` names the HTTP protocol exposed by Gemini, not an additional OpenAI dependency. One `GEMINI_API_KEY` serves both capabilities; `EMBEDDING_API_KEY` is only an optional override for a separate Gemini project or credential.
+
 Read the [architecture](docs/ARCHITECTURE.md), [security model](docs/SECURITY.md), [operations runbook](docs/RUNBOOK.md), [demo guide](docs/DEMO.md), [implementation report](docs/IMPLEMENTATION_REPORT.md), and [detailed 10/10 plan](GROUNDWORK_10_OUT_OF_10_PLAN.md).
 
 ## Local development

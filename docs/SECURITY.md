@@ -17,6 +17,7 @@ Protected assets are workspace evidence, source ACL metadata, connector refresh/
 - Redis-backed rate limits protect auth, upload, and chat paths with an in-process fallback.
 - User/repository/evidence text is untrusted data. It cannot authorize tools; grounded model output must cite retrieved IDs and cannot override deterministic release gates.
 - Production fails closed for disabled security, wildcard CORS, weak/placeholders secrets, local embeddings, incomplete enabled integrations, and billing.
+- Gemini is the declared chat and embedding provider. A single `GEMINI_API_KEY` is used by default; `EMBEDDING_API_KEY` is an optional least-privilege override, and `openai-compatible` identifies only the transport protocol.
 - Browser headers cover CSP, frame denial, MIME sniffing, referrer, and permissions policy. Dynamic UI content is rendered through React.
 - Mutation audit events, finding feedback, request IDs, metrics, and traces support incident investigation.
 

@@ -20,7 +20,7 @@ flowchart TB
     Workers --> App
     App --> PG[(PostgreSQL + pgvector)]
     App --> Redis[(Redis cache/rate limits)]
-    App --> Providers[Chat/embedding providers]
+    App --> Providers[Gemini chat/embedding provider<br/>OpenAI-compatible protocol]
     App --> GitHub
     API --> Metrics[Prometheus + OTLP]
 ```

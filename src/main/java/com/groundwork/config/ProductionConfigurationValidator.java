@@ -12,6 +12,9 @@ public class ProductionConfigurationValidator implements InitializingBean {
     private final String jwtSecret;
     private final String allowedOrigins;
     private final String embeddingProvider;
+    private final String embeddingProtocol;
+    private final String chatProvider;
+    private final String chatProtocol;
     private final String embeddingApiKey;
     private final String chatApiKey;
     private final boolean billingEnabled;
@@ -29,6 +32,9 @@ public class ProductionConfigurationValidator implements InitializingBean {
             @Value("${groundwork.jwt.secret}") String jwtSecret,
             @Value("${groundwork.security.allowed-origins}") String allowedOrigins,
             @Value("${groundwork.embedding.provider}") String embeddingProvider,
+            @Value("${groundwork.embedding.protocol}") String embeddingProtocol,
+            @Value("${groundwork.chat.provider}") String chatProvider,
+            @Value("${groundwork.chat.protocol}") String chatProtocol,
             @Value("${groundwork.embedding.api-key:}") String embeddingApiKey,
             @Value("${groundwork.chat.api-key:}") String chatApiKey,
             @Value("${groundwork.billing.enabled:false}") boolean billingEnabled,
@@ -44,6 +50,9 @@ public class ProductionConfigurationValidator implements InitializingBean {
         this.jwtSecret = jwtSecret;
         this.allowedOrigins = allowedOrigins;
         this.embeddingProvider = embeddingProvider;
+        this.embeddingProtocol = embeddingProtocol;
+        this.chatProvider = chatProvider;
+        this.chatProtocol = chatProtocol;
         this.embeddingApiKey = embeddingApiKey;
         this.chatApiKey = chatApiKey;
         this.billingEnabled = billingEnabled;
@@ -64,8 +73,12 @@ public class ProductionConfigurationValidator implements InitializingBean {
             throw new IllegalStateException("Production requires a unique JWT signing secret of at least 48 characters");
         }
         if (allowedOrigins.contains("*")) throw new IllegalStateException("Wildcard CORS origins are forbidden in production");
-        if (!"openai-compatible".equalsIgnoreCase(embeddingProvider)) {
-            throw new IllegalStateException("Production requires a remote embedding provider");
+        if (!"gemini".equalsIgnoreCase(embeddingProvider) || !"gemini".equalsIgnoreCase(chatProvider)) {
+            throw new IllegalStateException("Production is configured for Gemini chat and embedding providers");
+        }
+        if (!"openai-compatible".equalsIgnoreCase(embeddingProtocol) ||
+                !"openai-compatible".equalsIgnoreCase(chatProtocol)) {
+            throw new IllegalStateException("Gemini integrations require the configured OpenAI-compatible protocol");
         }
         if (isPlaceholder(embeddingApiKey) || isPlaceholder(chatApiKey)) {
             throw new IllegalStateException("Production requires live chat and embedding API keys");
